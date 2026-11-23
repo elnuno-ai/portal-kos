@@ -518,7 +518,7 @@
               <span>💬</span> <span>mIRC32 Live Chat</span>
             </button>
             <button onclick="switchInternalSubView('billing')" data-subview="billing" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
-              <span>💳</span> <span>Tagihan & Wi-Fi</span>
+              <span id="internalBillingTabIcon">💳</span> <span id="internalBillingTabLabel">Tagihan & Wi-Fi</span>
             </button>
             <button onclick="switchInternalSubView('radar')" data-subview="radar" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
               <span>📍</span> <span>Radar Lokasi Sekitar</span>
@@ -620,6 +620,8 @@
 
         <!-- SUB-VIEW 2: TAGIHAN & WI-FI -->
         <div id="internal-billing" class="internal-subview hidden space-y-5">
+          <!-- TAMPILAN PENGHUNI -->
+          <div id="billingTenantView" class="space-y-5">
           <!-- RINGKASAN AKUN & UBAH PIN -->
           <div id="billingAccountCard" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
             <div class="flex items-center justify-between gap-2">
@@ -716,6 +718,47 @@
               <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">Wajib Dipatuhi</span>
             </div>
             <div id="billingRulesBox" class="space-y-2 text-xs text-stone-700 leading-relaxed"></div>
+          </div>
+          </div>
+
+          <!-- TAMPILAN ADMIN: DASHBOARD LAPORAN & REKAP -->
+          <div id="billingAdminView" class="hidden space-y-5">
+            <div class="bg-stone-900 text-white rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span class="text-xs uppercase tracking-wider text-amber-300 font-bold">Admin View</span>
+                <h3 class="text-xl sm:text-2xl font-extrabold">📊 Dashboard Laporan & Rekap Pembayaran Kos</h3>
+                <p class="text-xs text-stone-300 mt-0.5">Rekap pemasukan, status pembayaran seluruh penghuni, log sewa, dan akun Wi-Fi semua kamar.</p>
+              </div>
+              <button type="button" onclick="copyPaymentRecapReport()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold shrink-0">
+                📋 Salin Laporan Rekap
+              </button>
+            </div>
+
+            <div id="adminBillingSummary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+
+            <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-extrabold text-lg text-stone-900">📋 Status Pembayaran Semua Penghuni</h4>
+                <span id="adminBillingTenantCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700">0 Penghuni</span>
+              </div>
+              <div id="adminBillingTenantTable" class="overflow-x-auto"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-extrabold text-lg text-stone-900">💵 Log Pemasukan Sewa Terbaru (Semua Kamar)</h4>
+                <span id="adminBillingIncomeCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">0 Transaksi</span>
+              </div>
+              <div id="adminBillingIncomeLog" class="space-y-2 text-xs max-h-72 overflow-y-auto"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-extrabold text-lg text-stone-900">📶 Daftar Akun Wi-Fi MikroTik Semua Kamar</h4>
+                <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">Sinkron Winbox</span>
+              </div>
+              <div id="adminBillingWifiTable" class="overflow-x-auto"></div>
+            </div>
           </div>
         </div>
 
@@ -2643,6 +2686,7 @@
       renderAccountCard();
       renderPaymentBar();
       renderPaymentLogs();
+      applyBillingViewForSession();
     }
 
     function copyWifiCredential(type) {
@@ -2781,9 +2825,12 @@
       });
       if (viewName === 'radar') renderNearbyLocations();
       if (viewName === 'billing') {
-        renderAccountCard();
-        renderPaymentLogs();
-        renderKosRules();
+        applyBillingViewForSession();
+        if (!currentSession || currentSession.role === 'tenant') {
+          renderAccountCard();
+          renderPaymentLogs();
+          renderKosRules();
+        }
       }
       renderPaymentBar();
     }
@@ -3439,6 +3486,215 @@
       showToast('Entri buku tamu dihapus.', 'info');
     }
 
+    // ==================== DASHBOARD LAPORAN ADMIN ====================
+    function tenantPaymentStatusBadge(tenant) {
+      const days = getTenantDueDays(tenant);
+      if (days === null) return '<span class="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-bold">-</span>';
+      if (days < 0) return `<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-bold">Terlambat ${Math.abs(days)} hari</span>`;
+      if (days <= 5) return `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold">Jatuh Tempo H-${days}</span>`;
+      return '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">Lunas</span>';
+    }
+
+    function buildTenantReminderWa(tenant) {
+      const amount = formatRupiah(parseRupiahNumber(tenant.billingAmount));
+      const message = `Halo ${tenant.fullName}, pengingat pembayaran sewa ${tenant.roomName} periode ${formatPeriodID(tenant.nextDueDate)} sebesar ${amount}. Jatuh tempo ${formatDateID(tenant.nextDueDate)}. Mohon segera melakukan pembayaran. Terima kasih. — Pengelola Kos Sedhah Ayu Grup.`;
+      return `https://wa.me/${normalizeWhatsappNumber(tenant.phone)}?text=${encodeURIComponent(message)}`;
+    }
+
+    function getBillingIncomeRows() {
+      const rows = [];
+      registeredTenants.forEach(tenant => {
+        ensureTenantFinanceFields(tenant);
+        tenant.paymentLogs.forEach(log => rows.push({ owner: tenant, log, alumni: false }));
+      });
+      (alumniArchive || []).forEach(archive => {
+        (Array.isArray(archive.paymentLogs) ? archive.paymentLogs : []).forEach(log => rows.push({ owner: archive, log, alumni: true }));
+      });
+      return rows.sort((a, b) => String(b.log.paidDate).localeCompare(String(a.log.paidDate)) || String(b.log.id).localeCompare(String(a.log.id)));
+    }
+
+    function getBillingSummaryData() {
+      const currentMonth = toISODateLocal(new Date()).slice(0, 7);
+      const incomeRows = getBillingIncomeRows();
+      const incomeThisMonth = incomeRows
+        .filter(row => String(row.log.paidDate || '').slice(0, 7) === currentMonth)
+        .reduce((sum, row) => sum + (Number(row.log.amount) || 0), 0);
+
+      let dueSoonTotal = 0;
+      let dueSoonCount = 0;
+      registeredTenants.forEach(tenant => {
+        ensureTenantFinanceFields(tenant);
+        const days = getTenantDueDays(tenant);
+        if (days !== null && days <= 5) {
+          dueSoonTotal += parseRupiahNumber(tenant.billingAmount);
+          dueSoonCount += 1;
+        }
+      });
+
+      const occupied = rooms.filter(room => room.status === 'occupied').length;
+      const arrearsAlumni = alumniArchive.filter(a => a.paymentStatus === 'Tunggakan');
+      const alumniArrears = arrearsAlumni.reduce((sum, a) => sum + (Number(a.arrearsAmount) || 0), 0);
+
+      return {
+        incomeThisMonth,
+        dueSoonTotal,
+        dueSoonCount,
+        occupied,
+        totalRooms: rooms.length,
+        alumniArrears,
+        alumniCount: arrearsAlumni.length
+      };
+    }
+
+    function copyTextToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => { /* fallback di bawah */ });
+        return;
+      }
+      const temp = document.createElement('input');
+      temp.value = text;
+      document.body.appendChild(temp);
+      temp.select();
+      try { document.execCommand('copy'); } catch (err) { /* clipboard tidak tersedia */ }
+      temp.remove();
+    }
+
+    function copyPaymentRecapReport() {
+      const summary = getBillingSummaryData();
+      const lines = [
+        'REKAP PEMBAYARAN KOS SEDHAH AYU GRUP',
+        `Tanggal: ${formatDateID(toISODateLocal(new Date()))}`,
+        `Total pemasukan bulan ini: ${formatRupiah(summary.incomeThisMonth)}`,
+        `Belum lunas/mendekati tempo: ${formatRupiah(summary.dueSoonTotal)} (${summary.dueSoonCount} penghuni)`,
+        `Okupansi: ${summary.occupied}/${summary.totalRooms} kamar terisi`,
+        `Tunggakan alumni: ${formatRupiah(summary.alumniArrears)} (${summary.alumniCount} arsip)`,
+        '---'
+      ];
+      registeredTenants.forEach(tenant => {
+        ensureTenantFinanceFields(tenant);
+        const days = getTenantDueDays(tenant);
+        const status = days < 0 ? `Terlambat ${Math.abs(days)} hari`
+          : days <= 5 ? `Jatuh tempo H-${days}`
+            : 'Lunas';
+        lines.push(`${tenant.roomName} - ${tenant.fullName}: ${formatRupiah(parseRupiahNumber(tenant.billingAmount))} | ${status} | Jatuh tempo ${formatDateID(tenant.nextDueDate)}`);
+      });
+      copyTextToClipboard(lines.join('\n'));
+      showToast('Laporan rekap pembayaran disalin ke clipboard.', 'success');
+    }
+
+    function renderBillingAdminDashboard() {
+      const summaryEl = document.getElementById('adminBillingSummary');
+      const tenantTableEl = document.getElementById('adminBillingTenantTable');
+      const incomeEl = document.getElementById('adminBillingIncomeLog');
+      const wifiEl = document.getElementById('adminBillingWifiTable');
+      if (!summaryEl || !tenantTableEl) return;
+
+      const summary = getBillingSummaryData();
+      const card = (label, value, sub, cls) => `
+        <div class="rounded-2xl border p-4 shadow-sm ${cls}">
+          <div class="text-[11px] font-bold uppercase tracking-wide">${label}</div>
+          <div class="text-xl sm:text-2xl font-extrabold mt-1 font-mono-code">${value}</div>
+          <div class="text-[11px] mt-0.5 opacity-80">${sub}</div>
+        </div>
+      `;
+      summaryEl.innerHTML =
+        card('Total Pemasukan Bulan Ini', formatRupiah(summary.incomeThisMonth), formatPeriodID(toISODateLocal(new Date())), 'bg-emerald-50 border-emerald-200 text-emerald-950') +
+        card('Belum Lunas / Mendekati Tempo', formatRupiah(summary.dueSoonTotal), `${summary.dueSoonCount} penghuni`, 'bg-amber-50 border-amber-200 text-amber-950') +
+        card('Okupansi Kamar', `${summary.occupied}/${summary.totalRooms}`, 'Kamar terisi', 'bg-blue-50 border-blue-200 text-blue-950') +
+        card('Tunggakan Alumni', formatRupiah(summary.alumniArrears), `${summary.alumniCount} arsip tunggakan`, 'bg-red-50 border-red-200 text-red-950');
+
+      const tenantCountEl = document.getElementById('adminBillingTenantCount');
+      if (tenantCountEl) tenantCountEl.textContent = `${registeredTenants.length} Penghuni`;
+
+      tenantTableEl.innerHTML = `
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-left text-stone-500 border-b border-stone-200">
+              <th class="px-2 py-2">Kamar</th>
+              <th class="px-2 py-2">Nama Penghuni</th>
+              <th class="px-2 py-2">Tarif</th>
+              <th class="px-2 py-2">Jatuh Tempo</th>
+              <th class="px-2 py-2">Status</th>
+              <th class="px-2 py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${registeredTenants.map(tenant => {
+              ensureTenantFinanceFields(tenant);
+              return `
+                <tr class="border-b border-stone-100 align-middle">
+                  <td class="px-2 py-2 font-bold text-stone-900">${escapeHtml(tenant.roomName)}</td>
+                  <td class="px-2 py-2">${escapeHtml(tenant.fullName)}</td>
+                  <td class="px-2 py-2 font-mono-code">${formatRupiah(parseRupiahNumber(tenant.billingAmount))}</td>
+                  <td class="px-2 py-2">${formatDateID(tenant.nextDueDate)}</td>
+                  <td class="px-2 py-2">${tenantPaymentStatusBadge(tenant)}</td>
+                  <td class="px-2 py-2">
+                    <div class="flex flex-wrap gap-1">
+                      <button type="button" onclick="recordTenantPayment('${tenant.username}')" class="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✅ Tandai Lunas</button>
+                      <a href="${buildTenantReminderWa(tenant)}" target="_blank" class="px-2 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold">📲 Pengingat WA</a>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+
+      const incomeRows = getBillingIncomeRows();
+      const incomeCountEl = document.getElementById('adminBillingIncomeCount');
+      if (incomeCountEl) incomeCountEl.textContent = `${incomeRows.length} Transaksi`;
+      if (incomeEl) {
+        incomeEl.innerHTML = incomeRows.length ? incomeRows.map(row => `
+          <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+            <div>
+              <div class="font-bold text-stone-900">${escapeHtml(row.owner.roomName || '-')} • ${escapeHtml(row.owner.fullName || '-')}${row.alumni ? ' (Alumni)' : ''}</div>
+              <div class="text-stone-500 text-[11px]">${escapeHtml(row.log.period || '-')} • Lunas ${formatDateID(row.log.paidDate)}${row.log.method ? ' • ' + escapeHtml(row.log.method) : ''}</div>
+            </div>
+            <div class="font-mono-code font-extrabold text-emerald-800">${formatRupiah(row.log.amount)}</div>
+          </div>
+        `).join('') : '<div class="text-xs text-stone-500 italic">Belum ada pembayaran tercatat.</div>';
+      }
+
+      if (wifiEl) {
+        wifiEl.innerHTML = `
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-stone-500 border-b border-stone-200">
+                <th class="px-2 py-2">Kamar</th>
+                <th class="px-2 py-2">Nama</th>
+                <th class="px-2 py-2">Username Wi-Fi</th>
+                <th class="px-2 py-2">Password</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${registeredTenants.map(tenant => `
+                <tr class="border-b border-stone-100">
+                  <td class="px-2 py-2 font-bold text-stone-900">${escapeHtml(tenant.roomName)}</td>
+                  <td class="px-2 py-2">${escapeHtml(tenant.fullName)}</td>
+                  <td class="px-2 py-2 font-mono-code text-blue-900">${escapeHtml(tenant.username)}</td>
+                  <td class="px-2 py-2 font-mono-code text-emerald-900">${escapeHtml(tenant.wifiPassword || '-')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+    }
+
+    function applyBillingViewForSession() {
+      const isAdmin = currentSession && currentSession.role === 'admin';
+      const tenantView = document.getElementById('billingTenantView');
+      const adminView = document.getElementById('billingAdminView');
+      const icon = document.getElementById('internalBillingTabIcon');
+      const label = document.getElementById('internalBillingTabLabel');
+      if (tenantView) tenantView.classList.toggle('hidden', isAdmin);
+      if (adminView) adminView.classList.toggle('hidden', !isAdmin);
+      if (icon) icon.textContent = isAdmin ? '📊' : '💳';
+      if (label) label.textContent = isAdmin ? 'Laporan & Rekap' : 'Tagihan & Wi-Fi';
+      if (isAdmin) renderBillingAdminDashboard();
+    }
+
     function tenantDueBadge(tenant) {
       const days = getTenantDueDays(tenant);
       if (days === null) return '<span class="font-bold text-stone-500">-</span>';
@@ -3472,6 +3728,7 @@
       }
 
       renderAdminPanel();
+      if (currentSession && currentSession.role === 'admin') renderBillingAdminDashboard();
       queueStateSave();
       showToast(`Pembayaran ${tenant.fullName} (${period}) dicatat. Jatuh tempo berikutnya: ${formatDateID(tenant.nextDueDate)}.`, 'success');
     }
@@ -3525,6 +3782,7 @@
       }
       renderPaymentLogsModal();
       renderAdminPanel();
+      if (currentSession && currentSession.role === 'admin') renderBillingAdminDashboard();
       queueStateSave();
       showToast('Log pembayaran dihapus.', 'info');
     }
