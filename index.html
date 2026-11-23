@@ -249,6 +249,7 @@
           <span class="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200" id="kosSummaryAvailable">● 4 Tersedia</span>
           <span class="px-3 py-1.5 rounded-lg bg-stone-200 text-stone-700" id="kosSummaryOccupied">● 3 Terisi</span>
           <span class="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-200" id="kosSummaryRenovation">● 0 Renovasi</span>
+          <a id="kosWhatsappConsultBtn" href="https://wa.me/6281234567890" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white border border-emerald-800 transition">💬 Konsultasi WA</a>
         </div>
       </div>
 
@@ -815,6 +816,29 @@
         <!-- 2. KELOLA UNIT KAMAR (TAMBAH KAMAR & STATUS RENOVASI) -->
         <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <h3 class="font-extrabold text-lg text-stone-900">🏠 Kelola Unit Kamar & Status Renovasi</h3>
+
+          <form id="adminCatalogSettingsForm" class="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2.5 text-xs">
+            <div class="font-bold text-stone-800">Pengaturan Katalog Publik & Kontak WhatsApp</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block font-bold text-stone-700 mb-1">Mode Tampilan Tab Info Kos</label>
+                <select id="adminCatalogMode" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white">
+                  <option value="available">Hanya Kamar Tersedia (Default)</option>
+                  <option value="all">Tampilkan Semua Kamar</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-bold text-stone-700 mb-1">Nomor WhatsApp Konsultasi</label>
+                <input type="tel" id="adminWhatsappNumber" placeholder="6281234567890"
+                  class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white font-mono-code" />
+                <p class="text-[10px] text-stone-500 mt-1">Boleh diawali 0 (otomatis jadi 62). Dipakai tombol konsultasi & daftar tunggu di tab Info Kos.</p>
+              </div>
+            </div>
+            <button type="submit" class="w-full py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold">
+              💾 Simpan Pengaturan Katalog Info Kos
+            </button>
+          </form>
+
           <form id="adminAddRoomForm" class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
             <input type="text" id="newRoomName" required placeholder="Nama (Misal: Kamar 08)" class="px-3 py-2 rounded-xl border border-stone-300" />
             <input type="text" id="newRoomFloor" required placeholder="Lantai / Ukuran" class="px-3 py-2 rounded-xl border border-stone-300" />
@@ -1464,6 +1488,12 @@
     let radioStations = window.PORTAL_DATA.radioStations;
     let isRadioPlaying = false;
 
+    // Pengaturan tampilan katalog Info Kos
+    let catalogConfig = Object.assign(
+      { showOnlyAvailable: true, whatsappNumber: '6281234567890' },
+      window.PORTAL_DATA.catalogConfig || {}
+    );
+
     // ==================== 1B. PERSISTENSI STATE PORTAL ====================
     let stateEndpoint = null;
     let stateSaveTimer = null;
@@ -1482,6 +1512,7 @@
         siteBrandConfig,
         tickerConfig,
         tabConfigs,
+        catalogConfig,
         rooms,
         nearbyLocations,
         inviteCodes,
@@ -1521,6 +1552,10 @@
       if (state.siteBrandConfig) siteBrandConfig = state.siteBrandConfig;
       if (state.tickerConfig) tickerConfig = state.tickerConfig;
       if (Array.isArray(state.tabConfigs)) tabConfigs = state.tabConfigs;
+      if (state.catalogConfig && typeof state.catalogConfig === 'object') {
+        catalogConfig.showOnlyAvailable = state.catalogConfig.showOnlyAvailable !== false;
+        catalogConfig.whatsappNumber = normalizeWhatsappNumber(state.catalogConfig.whatsappNumber);
+      }
       if (Array.isArray(state.rooms)) rooms = state.rooms;
       if (Array.isArray(state.nearbyLocations)) nearbyLocations = state.nearbyLocations;
       if (Array.isArray(state.inviteCodes)) inviteCodes = state.inviteCodes;
@@ -1653,6 +1688,19 @@
 
     function formatRupiah(num) {
       return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    function normalizeWhatsappNumber(raw) {
+      let digits = String(raw || '').replace(/\D/g, '');
+      if (!digits) return '6281234567890';
+      if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+      if (!digits.startsWith('62')) digits = '62' + digits;
+      return digits;
+    }
+
+    function buildWhatsappUrl(message) {
+      const number = normalizeWhatsappNumber(catalogConfig && catalogConfig.whatsappNumber);
+      return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     }
 
     function getNowTimeStr() {
@@ -1908,7 +1956,27 @@
       if (sumOcc) sumOcc.textContent = `● ${occCount} Terisi`;
       if (sumReno) sumReno.textContent = `● ${renoCount} Renovasi`;
 
-      grid.innerHTML = rooms.map(room => {
+      const consultBtn = document.getElementById('kosWhatsappConsultBtn');
+      if (consultBtn) consultBtn.href = buildWhatsappUrl('Halo, saya ingin konsultasi ketersediaan kamar kos Sedhah Ayu.');
+
+      const publicRooms = catalogConfig.showOnlyAvailable ? rooms.filter(r => r.status === 'available') : rooms.slice();
+      if (!publicRooms.length) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl border border-amber-200 shadow-sm p-8 sm:p-10 text-center space-y-4">
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center text-3xl">🏠</div>
+            <h3 class="text-xl sm:text-2xl font-extrabold text-stone-900">Maaf, saat ini seluruh kamar sedang penuh</h3>
+            <p class="text-sm text-stone-600 max-w-xl mx-auto leading-relaxed">
+              Semua unit sedang terisi atau dalam perbaikan. Hubungi pengelola untuk masuk <strong>daftar tunggu</strong> — kami akan mengabari begitu ada kamar kosong.
+            </p>
+            <a href="${buildWhatsappUrl('Halo, saya ingin masuk daftar tunggu kamar kos Sedhah Ayu. Mohon informasi ketersediaan berikutnya.')}" target="_blank" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm transition shadow">
+              💬 Konsultasi Daftar Tunggu via WhatsApp
+            </a>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = publicRooms.map(room => {
         const pricing = getCatalogItemPricing(room);
         let statusBadge = '';
         if (room.status === 'available') {
@@ -1932,9 +2000,9 @@
           <div class="text-xl font-extrabold text-stone-900 font-mono-code">${pricing.formattedNormal}<span class="text-xs font-normal text-stone-500">/bln</span></div>
         `;
 
-        const waMsg = encodeURIComponent(`Halo Mas Inu, saya tertarik survei/pesan ${room.name} (${pricing.formattedActive}/bln). Apakah masih tersedia?`);
+        const waMsg = `Halo Mas Inu, saya tertarik survei/pesan ${room.name} (${pricing.formattedActive}/bln). Apakah masih tersedia?`;
         const actionBtn = room.status === 'available'
-          ? `<a href="https://wa.me/6281234567890?text=${waMsg}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm">📲 Pesan / Survei via WA</a>`
+          ? `<a href="${buildWhatsappUrl(waMsg)}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm">📲 Pesan / Survei via WA</a>`
           : `<button disabled class="w-full py-2.5 rounded-xl bg-stone-100 text-stone-400 font-bold text-xs cursor-not-allowed">${room.status === 'occupied' ? 'Unit Sedang Terisi' : 'Dalam Perbaikan / Renovasi'}</button>`;
 
         return `
@@ -2516,7 +2584,14 @@
         document.getElementById('adminTickerActive').value = String(tickerConfig.active);
       }
 
-      // 2. Rooms Manage List
+      // 2. Rooms Manage List & Catalog Settings
+      const catalogModeEl = document.getElementById('adminCatalogMode');
+      if (catalogModeEl) {
+        catalogModeEl.value = catalogConfig.showOnlyAvailable ? 'available' : 'all';
+        const waNumberEl = document.getElementById('adminWhatsappNumber');
+        if (waNumberEl) waNumberEl.value = catalogConfig.whatsappNumber || '';
+      }
+
       const roomsListEl = document.getElementById('adminRoomsManageList');
       if (roomsListEl) {
         roomsListEl.innerHTML = rooms.map(r => {
@@ -3239,6 +3314,16 @@
       tickerConfig.active = document.getElementById('adminTickerActive').value === 'true';
       applyRunningTextConfig();
       showToast('Running text halaman depan diperbarui!', 'success');
+    });
+
+    // Catalog Display & WhatsApp Settings
+    document.getElementById('adminCatalogSettingsForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      catalogConfig.showOnlyAvailable = document.getElementById('adminCatalogMode').value === 'available';
+      catalogConfig.whatsappNumber = normalizeWhatsappNumber(document.getElementById('adminWhatsappNumber').value);
+      renderRooms();
+      renderAdminPanel();
+      showToast('Pengaturan tampilan katalog Info Kos disimpan!', 'success');
     });
 
     // Add Room & Edit Room Handlers
