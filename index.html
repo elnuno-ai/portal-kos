@@ -123,7 +123,7 @@
       </div>
 
       <!-- Navigation Tabs -->
-      <nav id="mainNavBar" class="flex items-center gap-1 overflow-x-auto pb-2 pt-1 no-scrollbar border-t border-stone-100">
+      <nav id="mainNavBar" class="flex flex-wrap items-center gap-1 pb-2 pt-1 border-t border-stone-100">
         <!-- Rendered dynamically via renderNavigationTabs() -->
       </nav>
     </div>
@@ -514,13 +514,13 @@
       <div id="portalWorkspaceContainer" class="hidden space-y-4">
         <div class="bg-white rounded-2xl p-2 border border-stone-200 shadow-sm flex flex-wrap items-center justify-between gap-2">
           <div class="flex flex-wrap items-center gap-1.5">
-            <button onclick="switchInternalSubView('mirc')" data-subview="mirc" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-900 text-white flex items-center gap-1.5">
+            <button onclick="switchInternalSubView('mirc')" data-subview="mirc" class="internal-sub-btn px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold bg-stone-900 text-white flex items-center gap-1.5">
               <span>💬</span> <span>mIRC32 Live Chat</span>
             </button>
-            <button onclick="switchInternalSubView('billing')" data-subview="billing" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
+            <button onclick="switchInternalSubView('billing')" data-subview="billing" class="internal-sub-btn px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
               <span id="internalBillingTabIcon">💳</span> <span id="internalBillingTabLabel">Tagihan & Wi-Fi</span>
             </button>
-            <button onclick="switchInternalSubView('radar')" data-subview="radar" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
+            <button onclick="switchInternalSubView('radar')" data-subview="radar" class="internal-sub-btn px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
               <span>📍</span> <span>Radar Lokasi Sekitar</span>
             </button>
           </div>
@@ -1642,6 +1642,18 @@
     let unreadMircTabs = new Set();
     let mircSoundEnabled = true;
 
+    function loadHiddenMircTabs() {
+      try { return new Set(JSON.parse(sessionStorage.getItem('hiddenMircTabs') || '[]')); }
+      catch (err) { return new Set(); }
+    }
+
+    function saveHiddenMircTabs() {
+      try { sessionStorage.setItem('hiddenMircTabs', JSON.stringify([...hiddenMircTabs])); }
+      catch (err) { /* sessionStorage tidak tersedia */ }
+    }
+
+    let hiddenMircTabs = loadHiddenMircTabs();
+
     // Radio Online Kos State
     let radioStations = window.PORTAL_DATA.radioStations;
     let isRadioPlaying = false;
@@ -1798,6 +1810,76 @@
       if (!result) return null;
       rememberEndpoint(RADIO_ENDPOINT_CACHE_KEY, result.endpoint);
       return result.data.stations;
+    }
+
+    const MIRC_ENDPOINT_CACHE_KEY = 'portalMircEndpoint';
+
+    async function loadMircChannelsFromServer() {
+      const candidates = orderEndpointsByCache(MIRC_ENDPOINT_CACHE_KEY, ['php-api/mirc.php', 'api/mirc']);
+      const result = await fetchFirstValidEndpoint(
+        candidates,
+        data => data.ok && data.mircChannels && typeof data.mircChannels === 'object'
+      );
+      if (!result) return null;
+      rememberEndpoint(MIRC_ENDPOINT_CACHE_KEY, result.endpoint);
+      return result.data.mircChannels;
+    }
+
+    function mircMessageKey(message) {
+      return `${message.type}|${message.time}|${message.nick || ''}|${message.text}`;
+    }
+
+    function mergeMircChannels(remoteChannels) {
+      const merged = {};
+      const addedCounts = {};
+      const keys = new Set([...Object.keys(mircChannels || {}), ...Object.keys(remoteChannels || {})]);
+      keys.forEach(channel => {
+        const local = mircChannels[channel] || { topic: '', messages: [] };
+        const remote = remoteChannels[channel] || { topic: '', messages: [] };
+        const localKeys = new Set((local.messages || []).map(mircMessageKey));
+        const seen = new Set();
+        const messages = [];
+        (local.messages || []).concat(remote.messages || []).forEach(message => {
+          const key = mircMessageKey(message);
+          if (seen.has(key)) return;
+          seen.add(key);
+          messages.push(message);
+          if (!localKeys.has(key)) addedCounts[channel] = (addedCounts[channel] || 0) + 1;
+        });
+        messages.sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
+        merged[channel] = { topic: remote.topic || local.topic || '', messages };
+      });
+      return { merged, addedCounts };
+    }
+
+    let mircSyncInFlight = false;
+
+    async function syncMircFromServer() {
+      if (mircSyncInFlight || !currentSession) return;
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (currentMainTab !== 'portal') return;
+
+      mircSyncInFlight = true;
+      try {
+        const remote = await loadMircChannelsFromServer();
+        if (!remote) return;
+        const before = JSON.stringify(mircChannels);
+        const { merged, addedCounts } = mergeMircChannels(remote);
+        if (JSON.stringify(merged) === before) return;
+
+        mircChannels = merged;
+        Object.keys(addedCounts).forEach(channel => {
+          if (channel !== activeMircTab) unreadMircTabs.add(channel);
+        });
+        renderMircChannels();
+        renderMircMessages();
+        renderMircUserList();
+        if (Object.keys(addedCounts).length) playMircBeep();
+      } catch (err) {
+        /* sinkronisasi opsional, abaikan kegagalan jaringan */
+      } finally {
+        mircSyncInFlight = false;
+      }
     }
 
     function applyPersistedState(state) {
@@ -2343,15 +2425,15 @@
       const publicTabs = tabConfigs.filter(t => !t.isSubSection);
       let html = publicTabs.map(t => {
         const active = currentMainTab === t.key;
-        return `<button data-tab-key="${escapeHtml(t.key)}" onclick="switchMainTab('${escapeHtml(t.key)}')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">${escapeHtml(t.navLabel)}</button>`;
+        return `<button data-tab-key="${escapeHtml(t.key)}" onclick="switchMainTab('${escapeHtml(t.key)}')" class="px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">${escapeHtml(t.navLabel)}</button>`;
       }).join('');
 
       const portalActive = currentMainTab === 'portal';
-      html += `<button data-tab-key="portal" onclick="switchMainTab('portal')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${portalActive ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}">💬 Portal Kos</button>`;
+      html += `<button data-tab-key="portal" onclick="switchMainTab('portal')" class="px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${portalActive ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}">💬 Portal Kos</button>`;
 
       if (currentSession && currentSession.role === 'admin') {
         const adminActive = currentMainTab === 'admin';
-        html += `<button data-tab-key="admin" onclick="switchMainTab('admin')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${adminActive ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}">👑 Panel Admin</button>`;
+        html += `<button data-tab-key="admin" onclick="switchMainTab('admin')" class="px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${adminActive ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}">👑 Panel Admin</button>`;
       }
 
       nav.innerHTML = html;
@@ -2370,11 +2452,11 @@
         const key = btn.dataset.tabKey;
         const active = currentMainTab === key;
         if (key === 'portal') {
-          btn.className = `px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${active ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}`;
+          btn.className = `px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${active ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}`;
         } else if (key === 'admin') {
-          btn.className = `px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${active ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}`;
+          btn.className = `px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${active ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}`;
         } else {
-          btn.className = `px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}`;
+          btn.className = `px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}`;
         }
       });
     }
@@ -2412,6 +2494,7 @@
         renderMircChannels();
         renderMircMessages();
         renderMircUserList();
+        syncMircFromServer();
       }
     }
 
@@ -2936,9 +3019,9 @@
 
       document.querySelectorAll('.internal-sub-btn').forEach(btn => {
         if (btn.dataset.subview === viewName) {
-          btn.className = 'internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-900 text-white flex items-center gap-1.5';
+          btn.className = 'internal-sub-btn px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold bg-stone-900 text-white flex items-center gap-1.5';
         } else {
-          btn.className = 'internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5';
+          btn.className = 'internal-sub-btn px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5';
         }
       });
       if (viewName === 'radar') renderNearbyLocations();
@@ -2961,6 +3044,8 @@
         mircChannels[pmTarget] = { topic: 'Private Message dengan Pengelola Kos', messages: [] };
       }
       activeMircTab = pmTarget;
+      hiddenMircTabs.delete(pmTarget);
+      saveHiddenMircTabs();
       mircChannels[pmTarget].messages.push({
         type: 'chat',
         time: getNowTimeStr(),
@@ -2970,6 +3055,7 @@
       });
       renderMircChannels();
       renderMircMessages();
+      queueStateSave();
       showToast('Pesan konfirmasi dikirim ke PM @AdminKos!', 'success');
     }
 
@@ -2977,15 +3063,45 @@
     function renderMircChannels() {
       const container = document.getElementById('mircChannelTabs');
       if (!container) return;
-      container.innerHTML = Object.keys(mircChannels).map(ch => {
+      const visibleChannels = Object.keys(mircChannels).filter(ch => !hiddenMircTabs.has(ch));
+      container.innerHTML = visibleChannels.map(ch => {
         const isActive = activeMircTab === ch;
         const isUnread = unreadMircTabs.has(ch);
-        return `<button type="button" onclick="selectMircChannel('${escapeHtml(ch)}')" class="win98-btn px-3 py-1 text-xs font-mono-code shrink-0 ${isActive ? 'active font-bold bg-white' : ''} ${isUnread ? 'mirc-tab-unread' : ''}">${escapeHtml(ch)}</button>`;
+        const closeBtn = ch === '#umum'
+          ? ''
+          : `<button type="button" onclick="event.stopPropagation(); closeMircChannelTab('${escapeHtml(ch)}')" class="px-1.5 py-1 text-[11px] font-bold text-stone-600 hover:text-red-700" title="Tutup tab">✕</button>`;
+        return `<div class="win98-btn flex items-center shrink-0 ${isActive ? 'active font-bold bg-white' : ''} ${isUnread ? 'mirc-tab-unread' : ''}">
+          <button type="button" onclick="selectMircChannel('${escapeHtml(ch)}')" class="px-2.5 py-1 text-xs font-mono-code">${escapeHtml(ch)}</button>
+          ${closeBtn}
+        </div>`;
       }).join('');
 
+      if (hiddenMircTabs.size) {
+        container.innerHTML += `<button type="button" onclick="showAllMircTabs()" class="win98-btn px-2 py-1 text-[11px] font-bold shrink-0" title="Tampilkan semua tab">↺ Semua Tab</button>`;
+      }
+
+      if (hiddenMircTabs.has(activeMircTab) || !mircChannels[activeMircTab]) activeMircTab = '#umum';
       const activeObj = mircChannels[activeMircTab] || { topic: '' };
       document.getElementById('mircActiveChanHeader').textContent = activeMircTab;
       document.getElementById('mircTopicDisplay').textContent = activeObj.topic;
+    }
+
+    function closeMircChannelTab(ch) {
+      if (!ch || ch === '#umum') return;
+      hiddenMircTabs.add(ch);
+      saveHiddenMircTabs();
+      if (activeMircTab === ch) activeMircTab = '#umum';
+      renderMircChannels();
+      renderMircMessages();
+      showToast(`Tab ${ch} ditutup. Klik "↺ Semua Tab" untuk menampilkannya lagi.`, 'info');
+    }
+
+    function showAllMircTabs() {
+      hiddenMircTabs.clear();
+      saveHiddenMircTabs();
+      renderMircChannels();
+      renderMircMessages();
+      showToast('Semua tab channel ditampilkan kembali.', 'info');
     }
 
     function selectMircChannel(ch) {
@@ -3036,6 +3152,8 @@
       if (!mircChannels[targetNick]) {
         mircChannels[targetNick] = { topic: `Private Message berdua dengan ${targetNick}`, messages: [{ type: 'system', time: getNowTimeStr(), text: `*** Memulai sesi Private Message dengan ${targetNick}` }] };
       }
+      hiddenMircTabs.delete(targetNick);
+      saveHiddenMircTabs();
       selectMircChannel(targetNick);
     }
 
@@ -3056,6 +3174,7 @@
 
     function executeMircCommand(raw) {
       if (!currentSession) return;
+      queueStateSave();
       const t = getNowTimeStr();
       const chObj = mircChannels[activeMircTab];
 
@@ -4091,6 +4210,8 @@
     function deleteMircChannel(ch) {
       if (ch === '#umum') return;
       delete mircChannels[ch];
+      hiddenMircTabs.delete(ch);
+      saveHiddenMircTabs();
       if (activeMircTab === ch) activeMircTab = '#umum';
       renderMircChannels();
       renderAdminPanel();
@@ -4941,6 +5062,8 @@
       setInterval(() => {
         if (currentSession && currentSession.role === 'tenant') renderPaymentBar();
       }, 60000);
+
+      setInterval(syncMircFromServer, 4000);
 
       hydratePortalState()
         .then(refreshDynamicViews)
