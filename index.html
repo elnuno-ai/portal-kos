@@ -360,7 +360,7 @@
           <div class="bg-stone-900 text-white p-6">
             <span class="text-xs uppercase tracking-wider text-amber-400 font-bold">Zona Internal Penghuni Terdaftar</span>
             <h2 class="text-2xl font-extrabold mt-1">Portal Internal Anak Kos</h2>
-            <p class="text-xs text-stone-300 mt-1">Masuk dengan ID Kamar aktif, atau daftarkan diri menggunakan Kode Rekomendasi Kamar dari Admin.</p>
+            <p class="text-xs text-stone-300 mt-1">Masuk dengan Username & PIN Anda, atau daftar mandiri dengan memilih kamar kos yang masih tersedia.</p>
           </div>
 
           <div class="grid grid-cols-2 border-b border-stone-200 bg-stone-50">
@@ -376,8 +376,8 @@
           <div id="portalSubtab-signin" class="p-6 space-y-5">
             <form id="loginForm" class="space-y-4 text-sm">
               <div>
-                <label class="block text-xs font-bold text-stone-700 mb-1">ID Kamar / Username</label>
-                <input type="text" id="loginUsername" required placeholder="Contoh: kamar01 atau admin"
+                <label class="block text-xs font-bold text-stone-700 mb-1">Username Login</label>
+                <input type="text" id="loginUsername" required placeholder="Contoh: kmr01-dimas atau admin"
                   class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
               </div>
               <div>
@@ -393,46 +393,21 @@
 
           <!-- SUBTAB 2: REGISTRASI PENGHUNI BARU -->
           <div id="portalSubtab-register" class="hidden p-6 space-y-5">
-            <!-- Validasi Kode Rekomendasi Admin -->
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-              <div class="flex flex-wrap items-center justify-between gap-1">
-                <label class="text-xs font-bold text-amber-950">1. Kode Rekomendasi Kamar dari Admin *</label>
-                <span class="text-[11px] text-amber-800">Contoh aktif:
-                  <button type="button" onclick="applySamplePromoCode('KMR02-BIMA')" class="underline font-mono-code font-bold">KMR02-BIMA</button> /
-                  <button type="button" onclick="applySamplePromoCode('KMR05-SARI')" class="underline font-mono-code font-bold">KMR05-SARI</button>
-                </span>
-              </div>
-              <div class="flex gap-2">
-                <input type="text" id="regInviteCode" placeholder="Contoh: KMR02-BIMA"
-                  class="flex-1 px-3 py-2 rounded-lg border border-amber-300 bg-white font-mono-code text-sm uppercase focus:outline-none focus:border-amber-700" />
-                <button type="button" onclick="validateInviteCodeInput()" class="px-4 py-2 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shrink-0">
-                  Cek Kode
-                </button>
-              </div>
-              <div id="inviteCodeValidatedBox" class="hidden bg-white rounded-lg p-3 border border-emerald-300 text-xs flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <span class="text-emerald-700 font-bold">✓ Kode Valid!</span>
-                  <span class="text-stone-700 ml-1">Alokasi: <strong id="valRoomLabel" class="text-stone-900">Kamar 02</strong></span>
-                </div>
-                <div class="font-mono-code bg-stone-100 px-2 py-0.5 rounded border border-stone-300 text-blue-900 font-bold">
-                  Nickname: <span id="valNickLabel">+Kamar02_Bima</span>
-                </div>
-              </div>
+            <!-- Pilih Kamar Kos Tersedia (Pendaftaran Mandiri) -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+              <label class="text-xs font-bold text-amber-950 block">1. Pilih Kamar Kos yang Tersedia *</label>
+              <select id="regRoomSelect" required class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-sm focus:outline-none focus:border-amber-700">
+                <option value="">— Pilih Kamar Kos Tersedia —</option>
+              </select>
+              <p class="text-[11px] text-amber-800 leading-relaxed">Pendaftaran mandiri: pilih unit yang masih kosong. Username dan PIN akan dibuat otomatis setelah Anda submit.</p>
             </div>
 
             <!-- Form Biodata Lengkap -->
             <form id="registerTenantForm" class="space-y-4 text-sm">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label class="block text-xs font-bold text-stone-700 mb-1">Nama Lengkap (Sesuai KTP) *</label>
-                  <input type="text" id="regFullName" required placeholder="Contoh: Bima Sakti Pratama"
-                    class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-stone-700 mb-1">Buat PIN Login (4 Digit) *</label>
-                  <input type="text" id="regNewPin" maxlength="4" pattern="\d{4}" required placeholder="Contoh: 2026"
-                    class="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono-code focus:outline-none focus:border-amber-700" />
-                </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Nama Lengkap (Sesuai KTP) *</label>
+                <input type="text" id="regFullName" required placeholder="Contoh: Bima Sakti Pratama"
+                  class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -523,7 +498,7 @@
               </div>
 
               <button type="submit" class="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm transition shadow-md">
-                ✅ Aktifkan Akun & Gabung Grup mIRC32
+                ✅ Daftar Sekarang (Username & PIN Otomatis)
               </button>
             </form>
           </div>
@@ -637,6 +612,39 @@
 
         <!-- SUB-VIEW 2: TAGIHAN & WI-FI -->
         <div id="internal-billing" class="internal-subview hidden space-y-5">
+          <!-- RINGKASAN AKUN & UBAH PIN -->
+          <div id="billingAccountCard" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="font-extrabold text-lg text-stone-900">🔑 Akun Portal Anda</h3>
+              <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Aktif</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div class="p-3 rounded-xl bg-stone-50 border border-stone-200">
+                <div class="text-[11px] text-stone-500 font-bold uppercase tracking-wide">Username Login</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span id="acctUsernameDisplay" class="font-mono-code font-extrabold text-stone-900 break-all">-</span>
+                  <button type="button" onclick="copyAccountUsername()" class="px-2 py-0.5 rounded bg-stone-900 hover:bg-stone-800 text-white text-[11px] font-bold shrink-0">Salin</button>
+                </div>
+              </div>
+              <div class="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                <div class="text-[11px] text-amber-900 font-bold uppercase tracking-wide">PIN Standar</div>
+                <div id="acctPinDisplay" class="font-mono-code font-extrabold text-stone-900 text-lg mt-1">1234</div>
+              </div>
+            </div>
+            <form id="changePinForm" class="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
+              <div class="font-bold text-stone-800">Ubah PIN Sekarang</div>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input type="text" id="newPinInput" inputmode="numeric" maxlength="4" pattern="\d{4}" required placeholder="PIN baru 4 digit"
+                  class="flex-1 px-3 py-2 rounded-xl border border-stone-300 bg-white font-mono-code focus:outline-none focus:border-amber-700" />
+                <button type="submit" class="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold shrink-0">Simpan PIN Baru</button>
+              </div>
+              <p class="text-[11px] text-stone-500">PIN hanya 4 digit angka. Segera ganti PIN standar 1234 dengan PIN pribadi Anda.</p>
+            </form>
+            <div class="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-950 font-semibold leading-relaxed">
+              Simpan Username dan PIN di atas. Kredensial ini otomatis aktif untuk Sign In Member Portal Kos & mIRC32.
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
               <div class="flex items-center justify-between">
@@ -1471,7 +1479,6 @@
     let currentSession = null;
     let currentMainTab = 'about';
     let currentPromoFilter = 'all';
-    let validatedInviteObj = null;
     let pendingGbPhotoWebP = null;
     let pendingKtpPhotoWebP = null;
     let pendingPromoSquareWebP = null;
@@ -1936,6 +1943,8 @@
       const grid = document.getElementById('roomsGrid');
       if (!grid) return;
 
+      renderRegRoomOptions();
+
       const availCount = rooms.filter(r => r.status === 'available').length;
       const occCount = rooms.filter(r => r.status === 'occupied').length;
       const renoCount = rooms.filter(r => r.status === 'renovation').length;
@@ -2189,27 +2198,44 @@
       }
     }
 
-    function applySamplePromoCode(code) {
-      document.getElementById('regInviteCode').value = code;
-      validateInviteCodeInput();
+    function renderRegRoomOptions() {
+      const sel = document.getElementById('regRoomSelect');
+      if (!sel) return;
+      const prev = sel.value;
+      const vacant = rooms.filter(r => r.status === 'available');
+      if (!vacant.length) {
+        sel.innerHTML = '<option value="">Maaf, tidak ada kamar tersedia saat ini</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">— Pilih Kamar Kos Tersedia —</option>' + vacant.map(r => {
+        const pricing = getCatalogItemPricing(r);
+        return `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} • ${pricing.formattedActive}/bln</option>`;
+      }).join('');
+      if (prev && vacant.some(r => r.id === prev)) sel.value = prev;
     }
 
-    function validateInviteCodeInput() {
-      const codeVal = document.getElementById('regInviteCode').value.trim().toUpperCase();
-      const found = inviteCodes.find(c => c.code === codeVal && !c.used);
-      const box = document.getElementById('inviteCodeValidatedBox');
-      if (!found) {
-        validatedInviteObj = null;
-        if (box) box.classList.add('hidden');
-        showToast('Kode rekomendasi tidak valid atau sudah digunakan.', 'error');
-        return false;
-      }
-      validatedInviteObj = found;
-      document.getElementById('valRoomLabel').textContent = found.roomName;
-      document.getElementById('valNickLabel').textContent = '+' + found.nickname;
-      box.classList.remove('hidden');
-      showToast(`Kode ${found.code} valid untuk ${found.roomName}!`, 'success');
-      return true;
+    function renderAccountCard() {
+      const userEl = document.getElementById('acctUsernameDisplay');
+      const pinEl = document.getElementById('acctPinDisplay');
+      if (!userEl || !pinEl) return;
+      const isTenant = currentSession && currentSession.role === 'tenant';
+      userEl.textContent = isTenant ? currentSession.username : '-';
+      pinEl.textContent = isTenant ? (currentSession.pin || '1234') : '-';
+      const pinInput = document.getElementById('newPinInput');
+      if (pinInput) pinInput.value = '';
+    }
+
+    function copyAccountUsername() {
+      const el = document.getElementById('acctUsernameDisplay');
+      if (!el) return;
+      const value = el.textContent.trim();
+      const temp = document.createElement('input');
+      temp.value = value;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+      showToast(`Username "${value}" disalin!`, 'success');
     }
 
     function quickFillLogin(user, pin) {
@@ -2259,6 +2285,7 @@
       renderMircMessages();
       renderMircUserList();
       renderNearbyLocations();
+      renderAccountCard();
     }
 
     function copyWifiCredential(type) {
@@ -2394,6 +2421,7 @@
         }
       });
       if (viewName === 'radar') renderNearbyLocations();
+      if (viewName === 'billing') renderAccountCard();
     }
 
     function confirmBillingViaChat() {
@@ -2947,6 +2975,7 @@
       document.getElementById('ktpModalTitle').textContent = `Biodata & KTP: ${t.fullName}`;
       document.getElementById('ktpModalBody').innerHTML = `
         <div class="space-y-1.5">
+          <div><strong>Username Login:</strong> <span class="font-mono-code">${escapeHtml(t.username)}</span> (PIN: ${escapeHtml(t.pin || '-')})</div>
           <div><strong>Unit Kamar:</strong> ${escapeHtml(t.roomName)} (Nickname: +${escapeHtml(t.nickname)})</div>
           <div><strong>Nomor HP / WA:</strong> ${escapeHtml(t.phone)}</div>
           <div><strong>Kontak Darurat:</strong> ${escapeHtml(t.emergencyPhone)}</div>
@@ -3203,25 +3232,46 @@
 
     document.getElementById('registerTenantForm').addEventListener('submit', function (e) {
       e.preventDefault();
-      if (!validatedInviteObj && !validateInviteCodeInput()) return;
+
       if (!document.getElementById('regAgreeRules').checked) {
         showToast('Harap centang persetujuan Tata Tertib Kos terlebih dahulu.', 'warning');
         return;
       }
 
+      const roomId = document.getElementById('regRoomSelect').value;
+      const roomObj = rooms.find(r => r.id === roomId && r.status === 'available');
+      if (!roomObj) {
+        showToast('Silakan pilih kamar kos yang masih tersedia.', 'warning');
+        return;
+      }
+
       const fullName = document.getElementById('regFullName').value.trim();
-      const pin = document.getElementById('regNewPin').value.trim();
-      const roomObj = rooms.find(r => r.id === validatedInviteObj.roomId);
-      const pricing = roomObj ? getCatalogItemPricing(roomObj) : { formattedActive: 'Rp 650.000' };
+      if (!fullName) {
+        showToast('Nama lengkap wajib diisi.', 'warning');
+        return;
+      }
+
+      const firstWord = (fullName.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z0-9]/g, '') || 'penghuni';
+      const rawNumber = (roomObj.name.match(/\d+/) || [String(roomObj.id).replace(/\D/g, '')])[0] || '';
+      const numberPart = rawNumber.padStart(2, '0').slice(-2);
+      const baseUsername = `kmr${numberPart}-${firstWord}`;
+      let username = baseUsername;
+      let suffix = 2;
+      while (registeredTenants.some(t => t.username === username)) {
+        username = `${baseUsername}-${suffix++}`;
+      }
+      const pin = '1234';
+      const nickname = `Kamar${numberPart}_${firstWord.charAt(0).toUpperCase()}${firstWord.slice(1)}`;
+      const pricing = getCatalogItemPricing(roomObj);
 
       const newTenant = {
-        username: validatedInviteObj.roomId.toLowerCase(),
+        username,
         pin,
-        wifiPassword: `${validatedInviteObj.roomId.toLowerCase()}#${Math.floor(100 + Math.random() * 900)}`,
+        wifiPassword: `${username}#${Math.floor(100 + Math.random() * 900)}`,
         fullName,
-        roomId: validatedInviteObj.roomId,
-        roomName: validatedInviteObj.roomName,
-        nickname: validatedInviteObj.nickname,
+        roomId: roomObj.id,
+        roomName: roomObj.name,
+        nickname,
         phone: document.getElementById('regPhone').value.trim(),
         emergencyPhone: document.getElementById('regEmergencyPhone').value.trim(),
         originAddress: document.getElementById('regOriginAddress').value.trim(),
@@ -3236,26 +3286,53 @@
       };
 
       registeredTenants.push(newTenant);
-      validatedInviteObj.used = true;
-      if (roomObj) {
-        roomObj.status = 'occupied';
-        roomObj.tenant = fullName;
-      }
+      roomObj.status = 'occupied';
+      roomObj.tenant = fullName;
 
-      const t = getNowTimeStr();
       mircChannels['#umum'].messages.push({
         type: 'system',
-        time: t,
+        time: getNowTimeStr(),
         text: `*** Selamat bergabung +${newTenant.nickname} (${newTenant.fullName}) di ${newTenant.roomName}!`
       });
 
       currentSession = { role: 'tenant', ...newTenant, nickname: '+' + newTenant.nickname };
+      this.reset();
+      pendingKtpPhotoWebP = null;
+      document.getElementById('regKtpPreviewBox').classList.add('hidden');
       renderRooms();
+      renderRegRoomOptions();
       activateLoggedInWorkspace();
       switchMainTab('portal');
-      switchInternalSubView('mirc');
+      switchInternalSubView('billing');
+      renderAccountCard();
+      queueStateSave();
       playMircBeep();
-      showToast(`Akun ${newTenant.roomName} aktif! Selamat bergabung di mIRC32.`, 'success');
+      showToast(`Akun aktif! Username: ${username} • PIN standar: 1234`, 'success');
+    });
+
+    // Ubah PIN dari kartu akun (Tagihan & Wi-Fi)
+    document.getElementById('changePinForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!currentSession || currentSession.role !== 'tenant') {
+        showToast('Silakan masuk sebagai penghuni terlebih dahulu.', 'warning');
+        return;
+      }
+      const input = document.getElementById('newPinInput');
+      const newPin = input.value.trim();
+      if (!/^\d{4}$/.test(newPin)) {
+        showToast('PIN harus 4 digit angka.', 'warning');
+        return;
+      }
+      const tenant = registeredTenants.find(t => t.username === currentSession.username);
+      if (!tenant) {
+        showToast('Data penghuni tidak ditemukan.', 'error');
+        return;
+      }
+      tenant.pin = newPin;
+      currentSession.pin = newPin;
+      renderAccountCard();
+      queueStateSave();
+      showToast('PIN berhasil diperbarui. Gunakan PIN baru untuk login berikutnya.', 'success');
     });
 
     // mIRC32 Form Submit
