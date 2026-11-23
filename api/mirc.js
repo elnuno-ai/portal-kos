@@ -33,9 +33,19 @@ module.exports = async function handler(req, res) {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
-    const { rows } = await p.query("SELECT data->'mircChannels' AS channels FROM portal_state WHERE id=1");
-    const channels = rows.length ? rows[0].channels : null;
-    return res.status(200).json({ ok: true, mircChannels: channels || null });
+    const { rows } = await p.query(`
+      SELECT data->'mircChannels' AS channels, data->'registeredTenants' AS tenants
+      FROM portal_state WHERE id=1
+    `);
+    const row = rows[0] || {};
+    const memberUsernames = Array.isArray(row.tenants)
+      ? row.tenants.map(tenant => tenant && tenant.username).filter(Boolean)
+      : null;
+    return res.status(200).json({
+      ok: true,
+      mircChannels: row.channels || null,
+      memberUsernames,
+    });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
   }

@@ -491,19 +491,16 @@
                 </label>
               </div>
 
-              <!-- Ajakan Notifikasi PWA Khusus Member -->
-              <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+              <!-- Keterangan Notifikasi PWA Khusus Member (aktivasi via tombol daftar) -->
+              <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1.5">
                 <div class="text-xs font-bold text-emerald-950">🔔 Notifikasi Pengingat Khusus Member Kos</div>
                 <p class="text-[11px] text-emerald-900 leading-relaxed">
-                  Aktifkan notifikasi pengingat jatuh tempo sewa, pengumuman internal kos, dan mention mIRC32. Notifikasi ini <strong>khusus member kos terdaftar</strong> — tidak dikirim ke pengunjung umum.
+                  Dengan menekan tombol daftar, pengingat jatuh tempo sewa & pengumuman internal kos (khusus member) sekaligus diaktifkan. Notifikasi ini <strong>tidak dikirim ke pengunjung umum</strong>. Anda tetap bisa menolak izin notifikasi browser tanpa membatalkan pendaftaran.
                 </p>
-                <button type="button" id="btnMemberPwaRegister" onclick="enableMemberPwaFromRegister()" class="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition">
-                  🔔 Aktifkan Notifikasi Pengingat Kos & Jatuh Tempo (PWA)
-                </button>
               </div>
 
               <button type="submit" class="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm transition shadow-md">
-                ✅ Daftar Sekarang (Username & PIN Otomatis)
+                ✅ Daftar Sekarang & Aktifvasi
               </button>
             </form>
           </div>
@@ -1814,7 +1811,7 @@
 
     const MIRC_ENDPOINT_CACHE_KEY = 'portalMircEndpoint';
 
-    async function loadMircChannelsFromServer() {
+    async function loadMircSyncDataFromServer() {
       const candidates = orderEndpointsByCache(MIRC_ENDPOINT_CACHE_KEY, ['php-api/mirc.php', 'api/mirc']);
       const result = await fetchFirstValidEndpoint(
         candidates,
@@ -1822,7 +1819,19 @@
       );
       if (!result) return null;
       rememberEndpoint(MIRC_ENDPOINT_CACHE_KEY, result.endpoint);
-      return result.data.mircChannels;
+      return {
+        channels: result.data.mircChannels,
+        memberUsernames: Array.isArray(result.data.memberUsernames) ? result.data.memberUsernames : null
+      };
+    }
+
+    async function checkStaleMemberAccount() {
+      const account = readStoredMemberAccount();
+      if (!account) return;
+      const syncData = await loadMircSyncDataFromServer();
+      if (syncData && Array.isArray(syncData.memberUsernames)) {
+        await revokeStaleMemberNotifications(syncData.memberUsernames);
+      }
     }
 
     function mircMessageKey(message) {
@@ -1861,8 +1870,12 @@
 
       mircSyncInFlight = true;
       try {
-        const remote = await loadMircChannelsFromServer();
-        if (!remote) return;
+        const syncData = await loadMircSyncDataFromServer();
+        if (!syncData) return;
+        if (Array.isArray(syncData.memberUsernames)) {
+          revokeStaleMemberNotifications(syncData.memberUsernames).catch(() => {});
+        }
+        const remote = syncData.channels;
         const before = JSON.stringify(mircChannels);
         const { merged, addedCounts } = mergeMircChannels(remote);
         if (JSON.stringify(merged) === before) return;
@@ -1939,6 +1952,7 @@
       applyPersistedState(state);
       registeredTenants.forEach(ensureTenantFinanceFields);
       repairSedhahMenuImages();
+      revokeStaleMemberNotifications().catch(() => {});
       if (radios) radioStations = radios;
       lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
       isHydratingState = false;
@@ -2069,7 +2083,6 @@
     // ==================== 2B. UTILITAS PEMBAYARAN & NOTIFIKASI MEMBER ====================
     const MONTHS_ID_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const MONTHS_ID_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    let memberPwaIntent = false;
 
     function pad2(n) {
       return String(n).padStart(2, '0');
@@ -2147,46 +2160,78 @@
       return Math.round((dueDate - today) / 86400000);
     }
 
-    function setMemberPwaInviteActive(active) {
-      const btn = document.getElementById('btnMemberPwaRegister');
-      if (!btn) return;
-      if (active) {
-        btn.textContent = '✅ Notifikasi Member Aktif';
-        btn.disabled = true;
-        btn.className = 'w-full py-2.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs cursor-default';
-      } else {
-        btn.textContent = '🔔 Aktifkan Notifikasi Pengingat Kos & Jatuh Tempo (PWA)';
-        btn.disabled = false;
-        btn.className = 'w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition';
+    function getOrCreateMemberDeviceToken() {
+      try {
+        let token = localStorage.getItem('kosMemberDeviceToken');
+        if (!token) {
+          token = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'dev-' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+          localStorage.setItem('kosMemberDeviceToken', token);
+        }
+        return token;
+      } catch (err) {
+        return 'dev-' + Date.now().toString(36);
       }
     }
 
-    async function enableMemberPwaFromRegister() {
-      if (!('Notification' in window)) {
-        showToast('Browser ini tidak mendukung notifikasi.', 'warning');
-        return;
+    async function requestMemberNotificationAccess() {
+      let permission = ('Notification' in window) ? Notification.permission : 'unsupported';
+      if (permission === 'default') {
+        try {
+          permission = await Notification.requestPermission();
+        } catch (err) {
+          permission = 'denied';
+        }
       }
-      try {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          showToast('Izin notifikasi belum diberikan. Anda dapat mengaktifkannya dari pengaturan browser.', 'warning');
-          return;
-        }
-        memberPwaIntent = true;
-        setMemberPwaInviteActive(true);
-        showToast('Notifikasi member aktif. Status akan tersimpan setelah akun selesai dibuat.', 'success');
 
-        if (currentSession && currentSession.role === 'tenant') {
-          const tenant = registeredTenants.find(t => t.username === currentSession.username);
-          if (tenant) {
-            tenant.pwaMemberSubscribed = true;
-            currentSession.pwaMemberSubscribed = true;
-            renderPaymentBar();
-            queueStateSave();
+      let subscription = null;
+      if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration && registration.pushManager) {
+            const existing = await registration.pushManager.getSubscription();
+            if (existing) subscription = existing.toJSON ? existing.toJSON() : existing;
           }
-        }
-      } catch (err) {
-        showToast('Gagal meminta izin notifikasi.', 'error');
+        } catch (err) { /* subscription push opsional */ }
+      }
+      return { permission, subscription };
+    }
+
+    function readStoredMemberAccount() {
+      try { return JSON.parse(localStorage.getItem('kosMemberAccount') || 'null'); }
+      catch (err) { return null; }
+    }
+
+    async function unsubscribeDevicePush() {
+      try {
+        if (!('serviceWorker' in navigator)) return false;
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration || !registration.pushManager) return false;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) return await subscription.unsubscribe();
+      } catch (err) { /* abaikan */ }
+      return false;
+    }
+
+    async function revokeStaleMemberNotifications(remoteUsernames) {
+      const account = readStoredMemberAccount();
+      if (!account || !account.username) return;
+
+      const stillActive = Array.isArray(remoteUsernames)
+        ? remoteUsernames.includes(account.username)
+        : registeredTenants.some(tenant => tenant.username === account.username);
+      if (stillActive) return;
+
+      await unsubscribeDevicePush();
+      try {
+        localStorage.removeItem('kosMemberAccount');
+        localStorage.removeItem('kosMemberDeviceToken');
+      } catch (err) { /* abaikan */ }
+
+      if (currentSession && currentSession.username === account.username) {
+        currentSession.pwaMemberSubscribed = false;
+        renderPaymentBar();
       }
     }
 
@@ -2919,8 +2964,6 @@
       stopKosRadioPlayback();
       currentSession = null;
       renderNavigationTabs();
-      memberPwaIntent = false;
-      setMemberPwaInviteActive(false);
       document.getElementById('portalAuthContainer').classList.remove('hidden');
       document.getElementById('portalWorkspaceContainer').classList.add('hidden');
       switchMainTab('about');
@@ -3529,6 +3572,7 @@
               </span>
             </div>
             <div class="text-stone-600">Keluar: ${escapeHtml(a.checkoutDate)} • HP: ${escapeHtml(a.phone)}</div>
+            ${a.pwaRevoked ? `<div class="text-stone-500">🔕 Akses notifikasi member dicabut${a.pwaRevokedAt ? ` (${escapeHtml(a.pwaRevokedAt)})` : ''}</div>` : ''}
             ${a.adminNotes ? `<div class="text-red-900 font-semibold">Catatan: ${escapeHtml(a.adminNotes)}</div>` : ''}
             ${a.paymentStatus === 'Tunggakan' ? `<button type="button" onclick="markAlumniSettled(${idx})" class="px-2.5 py-1 rounded bg-emerald-700 text-white font-bold">✓ Tandai Lunas</button>` : ''}
           </div>
@@ -4369,7 +4413,7 @@
       });
     });
 
-    document.getElementById('registerTenantForm').addEventListener('submit', function (e) {
+    document.getElementById('registerTenantForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
       if (!document.getElementById('regAgreeRules').checked) {
@@ -4389,6 +4433,10 @@
         showToast('Nama lengkap wajib diisi.', 'warning');
         return;
       }
+
+      // Minta izin notifikasi langsung dari klik tombol daftar (1 tombol).
+      const memberNotify = await requestMemberNotificationAccess();
+      const memberDeviceToken = memberNotify.permission === 'granted' ? getOrCreateMemberDeviceToken() : null;
 
       const firstWord = (fullName.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z0-9]/g, '') || 'penghuni';
       const rawNumber = (roomObj.name.match(/\d+/) || [String(roomObj.id).replace(/\D/g, '')])[0] || '';
@@ -4423,7 +4471,9 @@
         billingAmount: pricing.formattedActive,
         billingDue: '21 Desember 2026',
         nextDueDate: addDaysISO(toISODateLocal(new Date()), 30),
-        pwaMemberSubscribed: memberPwaIntent,
+        pwaMemberSubscribed: memberNotify.permission === 'granted',
+        pushSubscription: memberNotify.subscription || null,
+        pushDeviceToken: memberDeviceToken,
         paymentLogs: []
       };
 
@@ -4438,9 +4488,19 @@
       });
 
       currentSession = { role: 'tenant', ...newTenant, nickname: '+' + newTenant.nickname };
+
+      if (memberNotify.permission === 'granted') {
+        try {
+          localStorage.setItem('kosMemberAccount', JSON.stringify({
+            username,
+            roomId: roomObj.id,
+            token: memberDeviceToken,
+            subscribedAt: new Date().toISOString()
+          }));
+        } catch (err) { /* localStorage tidak tersedia */ }
+      }
+
       this.reset();
-      memberPwaIntent = false;
-      setMemberPwaInviteActive(false);
       pendingKtpPhotoWebP = null;
       document.getElementById('regKtpPreviewBox').classList.add('hidden');
       renderRooms();
@@ -4859,12 +4919,20 @@
       const adminNotes = document.getElementById('coAdminNotes').value.trim();
       const postStatus = document.getElementById('coPostRoomStatus').value;
 
+      // Cabut akses notifikasi member & token push sebelum diarsipkan.
+      const hadMemberNotifications = !!tenant.pwaMemberSubscribed || !!tenant.pushSubscription || !!tenant.pushDeviceToken;
+      tenant.pwaMemberSubscribed = false;
+      tenant.pushSubscription = null;
+      tenant.pushDeviceToken = null;
+
       alumniArchive.unshift({
         ...tenant,
         checkoutDate: 'Hari Ini',
         paymentStatus,
         arrearsAmount: paymentStatus === 'Tunggakan' ? arrearsAmount : 0,
-        adminNotes
+        adminNotes,
+        pwaRevoked: hadMemberNotifications,
+        pwaRevokedAt: hadMemberNotifications ? formatDateID(toISODateLocal(new Date())) : null
       });
 
       const roomObj = rooms.find(r => r.id === tenant.roomId);
@@ -4884,6 +4952,7 @@
       renderRooms();
       renderMircUserList();
       renderAdminPanel();
+      queueStateSave();
       showToast(`Check-out ${tenant.fullName} diproses! Ingat hapus user MikroTik ${tenant.roomName}.`, 'warning');
     });
 
@@ -5064,6 +5133,7 @@
       }, 60000);
 
       setInterval(syncMircFromServer, 4000);
+      setInterval(() => { checkStaleMemberAccount().catch(() => {}); }, 60000);
 
       hydratePortalState()
         .then(refreshDynamicViews)
