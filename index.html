@@ -1023,6 +1023,31 @@
               <img id="adminPromoSquarePreview" alt="Preview 1:1" class="w-20 h-20 object-cover rounded-lg border border-stone-300" />
               <span class="text-xs font-bold text-emerald-800">✓ Gambar otomatis dipotong persegi 1:1 (800x800 WebP)</span>
             </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Harga Normal (Rp) *</label>
+                <input type="number" id="adminPromoNormalPrice" required min="0" step="500" placeholder="Contoh: 15000"
+                  class="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono-code text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Harga Coret / Promo (Rp)</label>
+                <input type="number" id="adminPromoPromoPrice" min="0" step="500" placeholder="Contoh: 12000 (opsional)"
+                  class="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono-code text-sm" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Satuan Harga</label>
+                <input type="text" id="adminPromoUnitLabel" placeholder="Contoh: / Porsi atau / Bungkus"
+                  class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Harga Coret Berlaku Hingga</label>
+                <input type="date" id="adminPromoDiscountUntil"
+                  class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs" />
+              </div>
+            </div>
+            <p class="text-[11px] text-stone-500">Harga coret aktif bila Harga Promo lebih kecil dari Harga Normal. Maksimal 6 kartu promo/titip jual.</p>
             <div>
               <label class="block text-xs font-bold text-stone-700 mb-1">Deskripsi Singkat *</label>
               <textarea id="adminPromoDesc" rows="2" required placeholder="Detail syarat promo atau spesifikasi produk titip jual..." class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs"></textarea>
@@ -1052,8 +1077,30 @@
             <h3 class="font-extrabold text-lg text-stone-900">🍛 Kelola Menu "Sedhah Ayu" & Harga Coret</h3>
             <span id="adminSedhahCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">6 Menu</span>
           </div>
-          <p class="text-xs text-stone-600">Edit keterangan menu, unggah foto hidangan (auto-crop 1:1), atau aktifkan harga diskon / harga coret harian.</p>
+          <p class="text-xs text-stone-600">Tambah/hapus menu, edit keterangan, unggah foto hidangan (auto-crop 1:1), atau aktifkan harga diskon / harga coret harian.</p>
           <div id="adminSedhahManageList" class="space-y-2.5 max-h-80 overflow-y-auto text-xs"></div>
+
+          <form id="adminAddSedhahForm" class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
+            <div class="font-bold text-stone-800">+ Tambah Menu Sedhah Ayu</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="newSedhahName" required placeholder="Nama Menu" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+              <input type="text" id="newSedhahCategory" required placeholder="Kategori (Misal: Menu Harian)" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+            <textarea id="newSedhahDesc" rows="2" required placeholder="Keterangan menu..." class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"></textarea>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input type="number" id="newSedhahNormalPrice" required min="500" step="500" placeholder="Harga Normal (Rp)" class="px-3 py-2 rounded-xl border border-stone-300 bg-white font-mono-code" />
+              <input type="number" id="newSedhahPromoPrice" min="500" step="500" placeholder="Harga Coret (Rp)" class="px-3 py-2 rounded-xl border border-stone-300 bg-white font-mono-code" />
+              <input type="text" id="newSedhahUnitLabel" placeholder="Satuan (mis. / Porsi)" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+              <input type="date" id="newSedhahDiscountUntil" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+              <input type="file" id="newSedhahImageInput" accept="image/*" class="w-full text-[11px] text-stone-600 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-950 font-semibold" />
+            </div>
+            <p class="text-[11px] text-stone-500">Harga coret aktif bila Harga Promo lebih kecil dari Harga Normal. Gambar opsional (otomatis dibuat jika kosong).</p>
+            <button type="submit" class="w-full py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold">
+              + Tambah Menu
+            </button>
+          </form>
         </div>
 
         <!-- 6. MODERASI BUKU TAMU -->
@@ -1586,6 +1633,7 @@
     let pendingKtpPhotoWebP = null;
     let pendingPromoSquareWebP = null;
     let pendingCatalogEditImageWebP = null;
+    let pendingSedhahNewImageWebP = null;
     let pwaSubscribed = false;
 
     // mIRC32 State
@@ -1808,6 +1856,7 @@
       const [state, radios] = await Promise.all([loadPortalState(), loadRadioStationsFromServer()]);
       applyPersistedState(state);
       registeredTenants.forEach(ensureTenantFinanceFields);
+      repairSedhahMenuImages();
       if (radios) radioStations = radios;
       lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
       isHydratingState = false;
@@ -1825,15 +1874,38 @@
     }
 
     function createSquarePromoSvgDataUrl(title, subtitle, bg1, bg2, emoji) {
+      const xmlEscape = value => String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
-        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${bg1}"/><stop offset="100%" stop-color="${bg2}"/></linearGradient></defs>
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${xmlEscape(bg1)}"/><stop offset="100%" stop-color="${xmlEscape(bg2)}"/></linearGradient></defs>
         <rect width="600" height="600" fill="url(#g)"/>
         <circle cx="300" cy="210" r="105" fill="rgba(255,255,255,0.14)"/>
-        <text x="300" y="242" font-size="95" text-anchor="middle">${emoji}</text>
-        <text x="300" y="385" font-family="sans-serif" font-weight="800" font-size="30" fill="#ffffff" text-anchor="middle">${title}</text>
-        <text x="300" y="430" font-family="sans-serif" font-weight="600" font-size="20" fill="#fde68a" text-anchor="middle">${subtitle}</text>
+        <text x="300" y="242" font-size="95" text-anchor="middle">${xmlEscape(emoji)}</text>
+        <text x="300" y="385" font-family="sans-serif" font-weight="800" font-size="30" fill="#ffffff" text-anchor="middle">${xmlEscape(title)}</text>
+        <text x="300" y="430" font-family="sans-serif" font-weight="600" font-size="20" fill="#fde68a" text-anchor="middle">${xmlEscape(subtitle)}</text>
       </svg>`;
       return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+
+    function repairSedhahMenuImages() {
+      if (!Array.isArray(sedhahMenuItems)) return;
+      const legacySvgFixes = {
+        M4: { title: 'Wedang Jahe & Poci', subtitle: 'Hangat & Menyegarkan', bg1: '#065f46', bg2: '#064e3b', emoji: '🍵' },
+        M5: { title: 'Tumpeng Mini', subtitle: 'Pesanan Acara & Rapat', bg1: '#991b1b', bg2: '#7f1d1d', emoji: '🍱' }
+      };
+      sedhahMenuItems.forEach(item => {
+        const fix = legacySvgFixes[item.id];
+        const isSvgImage = typeof item.image === 'string' && item.image.startsWith('data:image/svg+xml');
+        if (fix && (!item.image || isSvgImage)) {
+          item.image = createSquarePromoSvgDataUrl(fix.title, fix.subtitle, fix.bg1, fix.bg2, fix.emoji);
+        } else if (!item.image || typeof item.image !== 'string') {
+          item.image = createSquarePromoSvgDataUrl(item.name || 'Menu', item.category || 'Sedhah Ayu', '#78350f', '#451a03', '🍛');
+        }
+      });
     }
 
     function initDefaultSedhahMenu() {
@@ -1843,7 +1915,7 @@
         { id: 'M2', name: 'Nasi Rames Jadoel Komplit', category: 'Menu Harian', desc: 'Oseng tempe lombok ijo, telur dadar krispi, perkedel kentang, dan kering tempe kacang.', normalPrice: 12000, unitLabel: '/ Porsi', discountActive: false, promoPrice: 10000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Nasi Rames Jadoel', 'Masakan Rumahan Hangat', '#92400e', '#78350f', '🍛') },
         { id: 'M3', name: 'Tempe Mendoan Hangat (Isi 4)', category: 'Gorengan & Camilan', desc: 'Tempe kedelai pilihan digoreng setengah matang dengan irisan daun bawang & sambal kecap rawit.', normalPrice: 8000, unitLabel: '/ Porsi', discountActive: false, promoPrice: 6000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Tempe Mendoan', 'Goreng Dadakan Hangat', '#b45309', '#78350f', '🥟') },
         { id: 'M4', name: 'Wedang Jahe Gula Aren & Teh Poci', category: 'Minuman Tradisional', desc: 'Jahe emprit bakar geprek dengan gula aren asli Magelang atau teh poci seduh gula batu.', normalPrice: 6000, unitLabel: '/ Gelas', discountActive: true, promoPrice: 4000, discountUntil: '2026-12-31', promoLabel: 'Promo Sore', image: createSquarePromoSvgDataUrl('Wedang Jahe & Poci', 'Hangat & Menyegarkan', '#065f46', '#064e3b', '🍵') },
-        { id: 'M5', name: 'Paket Tumpeng Mini Syukuran', category: 'Catering & Acara', desc: 'Nasi kuning gurih, ayam ingkung suwir, urap sayur, telur balado, dan kering kentang.', normalPrice: 28000, unitLabel: '/ Box', discountActive: false, promoPrice: 25000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Tumpeng Mini', 'Pesanan Acara & Rapat', '#991b1b', '#7f1d1d', ' Cone') },
+        { id: 'M5', name: 'Paket Tumpeng Mini Syukuran', category: 'Catering & Acara', desc: 'Nasi kuning gurih, ayam ingkung suwir, urap sayur, telur balado, dan kering kentang.', normalPrice: 28000, unitLabel: '/ Box', discountActive: false, promoPrice: 25000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Tumpeng Mini', 'Pesanan Acara & Rapat', '#991b1b', '#7f1d1d', '🍱') },
         { id: 'M6', name: 'Paket Catering Bulanan Anak Kos', category: 'Langganan Kos', desc: 'Paket makan 2x sehari (siang & malam) diantar langsung ke teras kamar kos setiap hari.', normalPrice: 550000, unitLabel: '/ Bulan', discountActive: true, promoPrice: 490000, discountUntil: '2026-12-31', promoLabel: 'Khusus Penghuni Kos', image: createSquarePromoSvgDataUrl('Catering Anak Kos', 'Antar Langsung ke Kamar', '#1e3a8a', '#172554', '🥡') }
       ];
     }
@@ -3231,7 +3303,7 @@
       // 5. Promos & Sedhah Ayu Manage Lists
       const promoListEl = document.getElementById('adminPromosManageList');
       const promoCountEl = document.getElementById('adminPromoListCount');
-      if (promoCountEl) promoCountEl.textContent = `${promos.length} Item`;
+      if (promoCountEl) promoCountEl.textContent = `${promos.length} / 6 Item`;
       if (promoListEl) {
         promoListEl.innerHTML = promos.map(p => `
           <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between gap-2">
@@ -3265,7 +3337,10 @@
                   <div class="text-[11px] text-stone-600">${pr.formattedActive} ${pr.hasDiscount ? `<span class="line-through text-stone-400">${pr.formattedNormal}</span>` : ''}</div>
                 </div>
               </div>
-              <button type="button" onclick="openEditCatalogModal('sedhah', '${m.id}')" class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold shrink-0">✏️ Edit Menu & Diskon</button>
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="openEditCatalogModal('sedhah', '${m.id}')" class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold">✏️ Edit Menu & Diskon</button>
+                <button type="button" onclick="deleteSedhahMenuItem('${m.id}')" class="px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 font-bold" title="Hapus menu">✕</button>
+              </div>
             </div>
           `;
         }).join('');
@@ -3507,6 +3582,14 @@
     function toggleCatalogDiscountFields() {
       const active = document.getElementById('editCatalogDiscountActive').checked;
       document.getElementById('editCatalogDiscountFields').classList.toggle('hidden', !active);
+    }
+
+    function deleteSedhahMenuItem(id) {
+      sedhahMenuItems = sedhahMenuItems.filter(item => item.id !== id);
+      renderSedhahMenu();
+      renderAdminPanel();
+      queueStateSave();
+      showToast('Menu Sedhah Ayu dihapus.', 'info');
     }
 
     function deletePromoItem(id) {
@@ -4489,10 +4572,19 @@
 
     document.getElementById('adminAddPromoForm').addEventListener('submit', function (e) {
       e.preventDefault();
+      if (promos.length >= 6) {
+        showToast('Maksimal 6 kartu promo/titip jual. Hapus salah satu dulu.', 'warning');
+        return;
+      }
       const title = document.getElementById('adminPromoTitle').value.trim();
       const category = document.getElementById('adminPromoCategory').value;
       const badge = document.getElementById('adminPromoBadge').value.trim();
       const desc = document.getElementById('adminPromoDesc').value.trim();
+      const normalPrice = parseInt(document.getElementById('adminPromoNormalPrice').value, 10) || 0;
+      const promoPrice = parseInt(document.getElementById('adminPromoPromoPrice').value, 10) || 0;
+      const unitLabel = document.getElementById('adminPromoUnitLabel').value.trim();
+      const discountUntil = document.getElementById('adminPromoDiscountUntil').value;
+      const discountActive = normalPrice > 0 && promoPrice > 0 && promoPrice < normalPrice;
       const img = pendingPromoSquareWebP || createSquarePromoSvgDataUrl(title, badge, '#78350f', '#451a03', '🎁');
 
       promos.unshift({
@@ -4502,8 +4594,12 @@
         badge,
         desc,
         image: img,
-        normalPrice: 0,
-        discountActive: false
+        normalPrice,
+        unitLabel,
+        discountActive,
+        promoPrice: discountActive ? promoPrice : (promoPrice || normalPrice),
+        discountUntil: discountActive ? discountUntil : '',
+        promoLabel: discountActive ? badge : ''
       });
 
       if (document.getElementById('adminPromoNotifyCheck').checked) {
@@ -4522,6 +4618,53 @@
       renderPromos();
       renderAdminPanel();
       showToast('Promo baru berhasil diterbitkan!', 'success');
+    });
+
+    document.getElementById('newSedhahImageInput').addEventListener('change', function (e) {
+      if (!e.target.files[0]) return;
+      compressImageToWebP(e.target.files[0], 800, true, (webp) => {
+        pendingSedhahNewImageWebP = webp;
+        showToast('Gambar menu siap diunggah (WebP 1:1).', 'info');
+      });
+    });
+
+    document.getElementById('adminAddSedhahForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const name = document.getElementById('newSedhahName').value.trim();
+      const category = document.getElementById('newSedhahCategory').value.trim();
+      const desc = document.getElementById('newSedhahDesc').value.trim();
+      const normalPrice = parseInt(document.getElementById('newSedhahNormalPrice').value, 10) || 0;
+      if (!name || !category || !desc || normalPrice <= 0) {
+        showToast('Nama, kategori, keterangan, dan harga normal wajib diisi.', 'warning');
+        return;
+      }
+
+      const promoPrice = parseInt(document.getElementById('newSedhahPromoPrice').value, 10) || 0;
+      const unitLabel = document.getElementById('newSedhahUnitLabel').value.trim();
+      const discountUntil = document.getElementById('newSedhahDiscountUntil').value;
+      const discountActive = promoPrice > 0 && promoPrice < normalPrice;
+      const image = pendingSedhahNewImageWebP || createSquarePromoSvgDataUrl(name, category, '#78350f', '#451a03', '🍛');
+
+      sedhahMenuItems.push({
+        id: 'M' + Date.now().toString(36).toUpperCase(),
+        name,
+        category,
+        desc,
+        normalPrice,
+        unitLabel,
+        discountActive,
+        promoPrice: discountActive ? promoPrice : normalPrice,
+        discountUntil: discountActive ? discountUntil : '',
+        promoLabel: discountActive ? 'Promo' : '',
+        image
+      });
+
+      this.reset();
+      pendingSedhahNewImageWebP = null;
+      renderSedhahMenu();
+      renderAdminPanel();
+      queueStateSave();
+      showToast(`Menu "${name}" ditambahkan ke etalase Sedhah Ayu!`, 'success');
     });
 
     document.getElementById('editCatalogImageInput').addEventListener('change', function (e) {
