@@ -481,13 +481,7 @@
               <!-- Tata Tertib Kos -->
               <div class="space-y-2 pt-1">
                 <label class="block text-xs font-bold text-stone-700">Tata Tertib & Aturan Kos (Wajib Dibaca) *</label>
-                <div class="h-32 overflow-y-auto p-3.5 rounded-xl bg-stone-100 border border-stone-300 text-xs text-stone-700 space-y-2 leading-relaxed">
-                  <p class="font-bold text-stone-900">PERATURAN PENGHUNI KOS SEDHAHAYU — GINTUNG, JAMBEWANGI:</p>
-                  <p>1. <strong>Jam Malam & Tamu:</strong> Pintu gerbang dikunci pukul 22.30 WIB. Tamu lawan jenis dilarang masuk ke dalam kamar; batas bertamu di area teras pukul 21.00 WIB.</p>
-                  <p>2. <strong>Jaringan Wi-Fi:</strong> Setiap kamar mendapat alokasi maksimal <strong>2 perangkat aktif</strong>. Dilarang membagikan akun Wi-Fi ke pihak luar.</p>
-                  <p>3. <strong>Kebersihan & Fasilitas Bersama:</strong> Wajib menjaga kebersihan kamar, kamar mandi, serta area dapur bersama.</p>
-                  <p>4. <strong>Pembayaran Sewa:</strong> Pembayaran sewa dilakukan sesuai tanggal jatuh tempo bulanan dan dipantau melalui tab Tagihan & Wi-Fi.</p>
-                </div>
+                <div id="registrationRulesBox" class="h-32 overflow-y-auto p-3.5 rounded-xl bg-stone-100 border border-stone-300 text-xs text-stone-700 space-y-2 leading-relaxed"></div>
 
                 <label class="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/80 border border-amber-200 cursor-pointer select-none">
                   <input type="checkbox" id="regAgreeRules" class="mt-0.5 w-4 h-4 accent-amber-800 rounded" />
@@ -714,6 +708,15 @@
             <p class="text-xs text-stone-500">Catatan pembayaran sewa bulanan Anda. Hubungi Admin jika ada pembayaran yang belum tercatat.</p>
             <div id="paymentLogsList" class="space-y-2 text-xs"></div>
           </div>
+
+          <!-- TATA TERTIB & PERATURAN KOS -->
+          <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-lg text-stone-900">📜 Tata Tertib & Peraturan Kos</h3>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">Wajib Dipatuhi</span>
+            </div>
+            <div id="billingRulesBox" class="space-y-2 text-xs text-stone-700 leading-relaxed"></div>
+          </div>
         </div>
 
         <!-- SUB-VIEW 3: RADAR LOKASI SEKITAR -->
@@ -905,6 +908,42 @@
             </div>
             <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-800 hover:bg-indigo-900 text-white font-bold text-xs sm:text-sm">
               🔄 Proses Pindah Kamar Sekarang
+            </button>
+          </form>
+        </div>
+
+        <!-- 4. MANAJEMEN TATA TERTIB & PERATURAN KOS -->
+        <div data-admin-card="rules" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-lg text-stone-900">📜 Manajemen Tata Tertib & Peraturan Kos</h3>
+            <span id="adminRulesCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">4 Poin</span>
+          </div>
+          <p class="text-xs text-stone-600">Ubah judul header, edit isi poin, tambah/hapus, dan atur urutan poin. Perubahan langsung tampil di form registrasi dan tab Tagihan penghuni.</p>
+
+          <form id="adminRulesForm" class="space-y-3 text-xs">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Judul Header Peraturan *</label>
+              <input type="text" id="adminRulesHeading" required class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+
+            <div id="adminRulesItemsList" class="space-y-2"></div>
+
+            <label class="flex items-center gap-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer select-none">
+              <input type="checkbox" id="adminRulesAnnounceCheck" class="w-4 h-4 accent-amber-800 rounded" />
+              <span class="font-semibold text-stone-700">Umumkan pembaruan tata tertib ke #pengumuman mIRC32</span>
+            </label>
+
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold">
+              💾 Simpan Peraturan Kos
+            </button>
+          </form>
+
+          <form id="adminAddRuleForm" class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
+            <div class="font-bold text-stone-800">+ Tambah Poin Peraturan</div>
+            <input type="text" id="newRuleTitle" required placeholder="Judul Poin (Misal: Jam Malam & Tamu)" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            <textarea id="newRuleContent" rows="2" required placeholder="Isi peraturan..." class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"></textarea>
+            <button type="submit" class="w-full py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold">
+              + Tambah Poin Peraturan
             </button>
           </form>
         </div>
@@ -1523,7 +1562,7 @@
     );
 
     // Urutan kartu Panel Admin (bisa disusun ulang)
-    const DEFAULT_ADMIN_CARD_ORDER = ['brand', 'running-text', 'rooms', 'move-room', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
+    const DEFAULT_ADMIN_CARD_ORDER = ['brand', 'running-text', 'rooms', 'move-room', 'rules', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
     const ADMIN_CARD_ORDER_STORAGE_KEY = 'adminCardOrder';
 
     function sanitizeAdminCardOrder(order) {
@@ -1559,6 +1598,38 @@
 
     let adminCardOrder = loadAdminCardOrderFromLocalStorage();
 
+    // Tata Tertib & Peraturan Kos
+    const DEFAULT_KOS_RULES = {
+      heading: 'PERATURAN PENGHUNI KOS SEDHAH AYU GRUP:',
+      items: [
+        { id: 'RULE1', title: 'Jam Malam & Tamu', content: 'Pintu gerbang dikunci pukul 22.30 WIB. Tamu lawan jenis dilarang masuk ke dalam kamar; batas bertamu di area teras pukul 21.00 WIB.' },
+        { id: 'RULE2', title: 'Jaringan Wi-Fi MikroTik (Max 2 Perangkat)', content: 'Setiap kamar mendapat alokasi maksimal 2 perangkat aktif. Dilarang membagikan akun Wi-Fi ke pihak luar.' },
+        { id: 'RULE3', title: 'Kebersihan & Fasilitas Bersama', content: 'Wajib menjaga kebersihan kamar, kamar mandi, serta area dapur bersama.' },
+        { id: 'RULE4', title: 'Pembayaran Sewa', content: 'Pembayaran sewa dilakukan sesuai tanggal jatuh tempo bulanan dan dipantau melalui tab Tagihan & Wi-Fi.' }
+      ]
+    };
+
+    function normalizeKosRulesConfig(raw) {
+      if (!raw || typeof raw !== 'object') {
+        return { heading: DEFAULT_KOS_RULES.heading, items: DEFAULT_KOS_RULES.items.map(item => ({ ...item })) };
+      }
+      const heading = typeof raw.heading === 'string' && raw.heading.trim()
+        ? raw.heading.trim()
+        : DEFAULT_KOS_RULES.heading;
+      const items = Array.isArray(raw.items)
+        ? raw.items
+          .filter(item => item && (item.title || item.content))
+          .map((item, index) => ({
+            id: item.id || `RULE${index + 1}_${Date.now()}`,
+            title: String(item.title || '').trim(),
+            content: String(item.content || '').trim()
+          }))
+        : [];
+      return { heading, items };
+    }
+
+    let kosRulesConfig = normalizeKosRulesConfig(window.PORTAL_DATA.kosRulesConfig);
+
     // ==================== 1B. PERSISTENSI STATE PORTAL ====================
     let stateEndpoint = null;
     let stateSaveTimer = null;
@@ -1579,6 +1650,7 @@
         tabConfigs,
         catalogConfig,
         adminCardOrder,
+        kosRulesConfig,
         rooms,
         nearbyLocations,
         registeredTenants,
@@ -1625,6 +1697,7 @@
         adminCardOrder = sanitizeAdminCardOrder(state.adminCardOrder);
         saveAdminCardOrderToLocalStorage();
       }
+      if (state.kosRulesConfig) kosRulesConfig = normalizeKosRulesConfig(state.kosRulesConfig);
       if (Array.isArray(state.rooms)) rooms = state.rooms;
       if (Array.isArray(state.nearbyLocations)) nearbyLocations = state.nearbyLocations;
       if (Array.isArray(state.registeredTenants)) registeredTenants = state.registeredTenants;
@@ -2710,6 +2783,7 @@
       if (viewName === 'billing') {
         renderAccountCard();
         renderPaymentLogs();
+        renderKosRules();
       }
       renderPaymentBar();
     }
@@ -3015,6 +3089,9 @@
         document.getElementById('adminTickerColor').value = tickerConfig.color;
         document.getElementById('adminTickerActive').value = String(tickerConfig.active);
       }
+
+      // Tata Tertib & Peraturan Kos
+      renderAdminRulesList();
 
       // 2. Rooms Manage List & Catalog Settings
       const catalogModeEl = document.getElementById('adminCatalogMode');
@@ -3450,6 +3527,69 @@
       renderAdminPanel();
       queueStateSave();
       showToast('Log pembayaran dihapus.', 'info');
+    }
+
+    // ==================== TATA TERTIB & PERATURAN KOS ====================
+    function renderKosRules() {
+      const itemsHtml = kosRulesConfig.items.map((item, index) => `
+        <p><strong>${index + 1}. ${escapeHtml(item.title)}:</strong> ${escapeHtml(item.content)}</p>
+      `).join('');
+      const html = `
+        <p class="font-bold text-stone-900">${escapeHtml(kosRulesConfig.heading)}</p>
+        ${itemsHtml || '<p class="italic text-stone-500">Belum ada poin peraturan.</p>'}
+      `;
+      const regBox = document.getElementById('registrationRulesBox');
+      const billingBox = document.getElementById('billingRulesBox');
+      if (regBox) regBox.innerHTML = html;
+      if (billingBox) billingBox.innerHTML = html;
+    }
+
+    function renderAdminRulesList() {
+      const headingInput = document.getElementById('adminRulesHeading');
+      const list = document.getElementById('adminRulesItemsList');
+      const countEl = document.getElementById('adminRulesCount');
+      if (headingInput) headingInput.value = kosRulesConfig.heading;
+      if (countEl) countEl.textContent = `${kosRulesConfig.items.length} Poin`;
+      if (!list) return;
+
+      if (!kosRulesConfig.items.length) {
+        list.innerHTML = '<div class="text-xs text-stone-500 italic p-2">Belum ada poin peraturan. Tambah lewat form di bawah.</div>';
+        return;
+      }
+      list.innerHTML = kosRulesConfig.items.map((item, index) => `
+        <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 space-y-1.5" data-rule-row="${escapeHtml(item.id)}">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-bold text-stone-500">Poin ${index + 1}</span>
+            <span class="flex items-center gap-1">
+              <button type="button" onclick="moveKosRule('${escapeHtml(item.id)}', -1)" class="px-2 py-0.5 rounded bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold" title="Naik">▲</button>
+              <button type="button" onclick="moveKosRule('${escapeHtml(item.id)}', 1)" class="px-2 py-0.5 rounded bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold" title="Turun">▼</button>
+              <button type="button" onclick="deleteKosRule('${escapeHtml(item.id)}')" class="px-2 py-0.5 rounded bg-red-100 hover:bg-red-200 text-red-800 font-bold" title="Hapus">✕</button>
+            </span>
+          </div>
+          <input type="text" data-rule-title value="${escapeHtml(item.title)}" class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white font-bold" />
+          <textarea data-rule-content rows="2" class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white">${escapeHtml(item.content)}</textarea>
+        </div>
+      `).join('');
+    }
+
+    function moveKosRule(id, delta) {
+      const index = kosRulesConfig.items.findIndex(item => item.id === id);
+      const target = index + delta;
+      if (index === -1 || target < 0 || target >= kosRulesConfig.items.length) return;
+      const items = [...kosRulesConfig.items];
+      [items[index], items[target]] = [items[target], items[index]];
+      kosRulesConfig.items = items;
+      renderKosRules();
+      renderAdminRulesList();
+      queueStateSave();
+    }
+
+    function deleteKosRule(id) {
+      kosRulesConfig.items = kosRulesConfig.items.filter(item => item.id !== id);
+      renderKosRules();
+      renderAdminRulesList();
+      queueStateSave();
+      showToast('Poin peraturan dihapus.', 'info');
     }
 
     function viewTenantKtp(username) {
@@ -3899,6 +4039,60 @@
       showToast('Pengaturan tampilan katalog Info Kos disimpan!', 'success');
     });
 
+    // Tata Tertib & Peraturan Kos Handlers
+    document.getElementById('adminRulesForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const heading = document.getElementById('adminRulesHeading').value.trim();
+      if (!heading) {
+        showToast('Judul header peraturan wajib diisi.', 'warning');
+        return;
+      }
+
+      const rows = [...document.querySelectorAll('#adminRulesItemsList [data-rule-row]')];
+      const items = rows.map(row => ({
+        id: row.dataset.ruleRow,
+        title: row.querySelector('[data-rule-title]').value.trim(),
+        content: row.querySelector('[data-rule-content]').value.trim()
+      })).filter(item => item.title || item.content);
+
+      kosRulesConfig = normalizeKosRulesConfig({ heading, items });
+      renderKosRules();
+      renderAdminRulesList();
+      queueStateSave();
+
+      const announce = document.getElementById('adminRulesAnnounceCheck');
+      if (announce && announce.checked) {
+        if (!mircChannels['#pengumuman']) mircChannels['#pengumuman'] = { topic: 'Pengumuman internal kos', messages: [] };
+        mircChannels['#pengumuman'].messages.push({
+          type: 'system',
+          time: getNowTimeStr(),
+          text: `*** Tata tertib kos diperbarui oleh Admin (${kosRulesConfig.items.length} poin). Mohon dibaca kembali di menu Tata Tertib.`
+        });
+        renderMircChannels();
+        if (activeMircTab === '#pengumuman') renderMircMessages();
+        announce.checked = false;
+        showToast('Tata tertib disimpan & diumumkan ke #pengumuman mIRC32.', 'success');
+      } else {
+        showToast('Tata tertib & peraturan kos berhasil diperbarui!', 'success');
+      }
+    });
+
+    document.getElementById('adminAddRuleForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const title = document.getElementById('newRuleTitle').value.trim();
+      const content = document.getElementById('newRuleContent').value.trim();
+      if (!title || !content) {
+        showToast('Judul dan isi poin wajib diisi.', 'warning');
+        return;
+      }
+      kosRulesConfig.items.push({ id: 'RULE' + Date.now().toString(36).toUpperCase(), title, content });
+      this.reset();
+      renderKosRules();
+      renderAdminRulesList();
+      queueStateSave();
+      showToast('Poin peraturan baru ditambahkan.', 'success');
+    });
+
     // Add Room & Edit Room Handlers
     document.getElementById('adminAddRoomForm').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -4276,6 +4470,7 @@
       renderGuestbook();
       renderNearbyLocations();
       renderRadioStationDropdown();
+      renderKosRules();
       initAdminCardControls();
       applyAdminCardOrder();
       updateAdminCardControlsState();
