@@ -48,3 +48,14 @@ Langkah setup:
 Untuk pengembangan lokal dengan Postgres: `npm install` lalu isi `.env` dari `.env.example`.
 
 Batas yang berlaku: maksimal 5 stasiun, minimal 1 stasiun, URL stream wajib http/https.
+
+### Penyimpanan data Panel Admin
+
+Semua perubahan dari Panel Admin (identitas brand/logo, running text, kamar, promo, menu Sedhah Ayu, moderasi buku tamu, data penghuni, tab navigasi, radar lokasi, channel mIRC) serta registrasi penghuni dan buku tamu publik disimpan otomatis ke tabel `portal_state`:
+
+- `api/state.js` — Vercel Function (Postgres, kolom `JSONB`).
+- `api/state.php` — padanan untuk XAMPP/MySQL (kolom `LONGTEXT`).
+
+Tabel `portal_state` dibuat otomatis pada request pertama. Simpan berjalan otomatis sekitar 0,7 detik setelah aksi terakhir, dan data dimuat lagi saat halaman dibuka. Stasiun radio tetap memakai tabel `radio_stations` sendiri.
+
+Catatan: payload state dibatasi 4 MB. Foto WebP (logo, KTP, promo) ikut tersimpan di state, jadi hindari mengunggah banyak foto beresolusi besar sekaligus.

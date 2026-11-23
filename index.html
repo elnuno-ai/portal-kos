@@ -1464,6 +1464,122 @@
     let radioStations = window.PORTAL_DATA.radioStations;
     let isRadioPlaying = false;
 
+    // ==================== 1B. PERSISTENSI STATE PORTAL ====================
+    let stateEndpoint = null;
+    let stateSaveTimer = null;
+    let lastSavedStateJson = '';
+    let isHydratingState = true;
+
+    async function fetchJson(endpoint, options) {
+      const res = await fetch(endpoint, options);
+      const type = res.headers.get('content-type') || '';
+      if (!type.includes('application/json')) return null;
+      return res.json();
+    }
+
+    function getPortalStateSnapshot() {
+      return {
+        siteBrandConfig,
+        tickerConfig,
+        tabConfigs,
+        rooms,
+        nearbyLocations,
+        inviteCodes,
+        registeredTenants,
+        guestbookEntries,
+        mircChannels,
+        promos,
+        sedhahMenuItems,
+        alumniArchive
+      };
+    }
+
+    async function loadPortalState() {
+      for (const endpoint of ['api/state.php', 'api/state']) {
+        try {
+          const data = await fetchJson(endpoint, { headers: { Accept: 'application/json' } });
+          if (!data || !data.ok) continue;
+          stateEndpoint = endpoint;
+          return data.state || null;
+        } catch (err) { /* endpoint tidak tersedia */ }
+      }
+      return null;
+    }
+
+    async function loadRadioStationsFromServer() {
+      for (const endpoint of ['api/radio.php', 'api/radio']) {
+        try {
+          const data = await fetchJson(endpoint, { headers: { Accept: 'application/json' } });
+          if (data && data.ok && Array.isArray(data.stations)) return data.stations;
+        } catch (err) { /* endpoint tidak tersedia */ }
+      }
+      return null;
+    }
+
+    function applyPersistedState(state) {
+      if (!state || typeof state !== 'object') return;
+      if (state.siteBrandConfig) siteBrandConfig = state.siteBrandConfig;
+      if (state.tickerConfig) tickerConfig = state.tickerConfig;
+      if (Array.isArray(state.tabConfigs)) tabConfigs = state.tabConfigs;
+      if (Array.isArray(state.rooms)) rooms = state.rooms;
+      if (Array.isArray(state.nearbyLocations)) nearbyLocations = state.nearbyLocations;
+      if (Array.isArray(state.inviteCodes)) inviteCodes = state.inviteCodes;
+      if (Array.isArray(state.registeredTenants)) registeredTenants = state.registeredTenants;
+      if (Array.isArray(state.guestbookEntries)) guestbookEntries = state.guestbookEntries;
+      if (state.mircChannels && typeof state.mircChannels === 'object') mircChannels = state.mircChannels;
+      if (Array.isArray(state.promos)) promos = state.promos;
+      if (Array.isArray(state.sedhahMenuItems)) sedhahMenuItems = state.sedhahMenuItems;
+      if (Array.isArray(state.alumniArchive)) alumniArchive = state.alumniArchive;
+    }
+
+    function queueStateSave() {
+      if (isHydratingState) return;
+      clearTimeout(stateSaveTimer);
+      stateSaveTimer = setTimeout(savePortalState, 700);
+    }
+
+    async function savePortalState() {
+      const state = getPortalStateSnapshot();
+      const json = JSON.stringify(state);
+      if (json === lastSavedStateJson) return;
+
+      const endpoints = stateEndpoint ? [stateEndpoint] : ['api/state.php', 'api/state'];
+      for (const endpoint of endpoints) {
+        try {
+          const data = await fetchJson(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state })
+          });
+          if (!data || !data.ok) continue;
+          stateEndpoint = endpoint;
+          lastSavedStateJson = json;
+          return;
+        } catch (err) { /* coba endpoint berikutnya */ }
+      }
+      showToast('Perubahan belum tersimpan: server penyimpanan tidak tersedia.', 'warning');
+    }
+
+    async function hydratePortalState() {
+      const state = await loadPortalState();
+      applyPersistedState(state);
+      const radios = await loadRadioStationsFromServer();
+      if (radios) radioStations = radios;
+      lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
+      isHydratingState = false;
+    }
+
+    function registerStateAutoSave() {
+      ['click', 'change', 'submit'].forEach(evt => {
+        document.addEventListener(evt, (e) => {
+          const target = e.target;
+          if (!target || !target.closest) return;
+          const scope = '#tab-admin, #guestbookForm, #registerTenantForm, #mircChatForm, #checkoutForm, #editTabConfigModal, #editCatalogItemModal, #editRoomModal, #editRadarItemModal, #editMircChannelModal';
+          if (target.closest(scope)) queueStateSave();
+        }, true);
+      });
+    }
+
     function createSquarePromoSvgDataUrl(title, subtitle, bg1, bg2, emoji) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
         <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${bg1}"/><stop offset="100%" stop-color="${bg2}"/></linearGradient></defs>
@@ -1477,6 +1593,7 @@
     }
 
     function initDefaultSedhahMenu() {
+      if (sedhahMenuItems.length) return;
       sedhahMenuItems = [
         { id: 'M1', name: 'Nasi Sayur Lodeh & Ayam Lengkuas', category: 'Paket Favorit', desc: 'Nasi pulen hangat, sayur lodeh ndeso santan gurih, ayam goreng bumbu lengkuas, sambal bawang & lalapan.', normalPrice: 16000, unitLabel: '/ Porsi', discountActive: true, promoPrice: 13500, discountUntil: '2026-12-31', promoLabel: 'Hemat Anak Kos', image: createSquarePromoSvgDataUrl('Nasi Ayam Lengkuas', 'Pondhok Dhahar Sedhah Ayu', '#78350f', '#451a03', '🍗') },
         { id: 'M2', name: 'Nasi Rames Jadoel Komplit', category: 'Menu Harian', desc: 'Oseng tempe lombok ijo, telur dadar krispi, perkedel kentang, dan kering tempe kacang.', normalPrice: 12000, unitLabel: '/ Porsi', discountActive: false, promoPrice: 10000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Nasi Rames Jadoel', 'Masakan Rumahan Hangat', '#92400e', '#78350f', '🍛') },
@@ -1488,6 +1605,7 @@
     }
 
     function initDefaultPromos() {
+      if (promos.length) return;
       promos = [
         { id: 'promo-1', title: 'Promo Pindah Kos Awal Bulan', category: 'kos', badge: 'Diskon Rp 100rb', desc: 'Potongan sewa bulan pertama untuk kamar baru (Kamar 02 & Kamar 05) termasuk akses Wi-Fi MikroTik 2 perangkat.', normalPrice: 750000, unitLabel: '/ Bulan', discountActive: true, promoPrice: 650000, discountUntil: '2026-12-31', promoLabel: 'Hemat Rp 100.000', image: createSquarePromoSvgDataUrl('Promo Kamar Kos', 'Diskon Sewa Bulan Pertama', '#065f46', '#022c22', '🏠') },
         { id: 'promo-2', title: 'Jumat Berkah Sedhah Ayu', category: 'resto', badge: 'Gratis Es Teh', desc: 'Setiap pembelian paket Nasi Ayam Lengkuas atau Nasi Rames Komplit hari Jumat gratis Es Teh Manis / Teh Hangat.', normalPrice: 16000, unitLabel: '/ Paket', discountActive: true, promoPrice: 13500, discountUntil: '2026-12-31', promoLabel: 'Jumat Berkah', image: createSquarePromoSvgDataUrl('Jumat Berkah', 'Pondhok Dhahar Sedhah Ayu', '#92400e', '#451a03', '🍛') },
@@ -1497,22 +1615,29 @@
 
     function initDefaultMircLogs() {
       const t = getNowTimeStr();
-      mircChannels['#umum'].messages = [
+      const seed = (key, defaultTopic, messages) => {
+        if (!mircChannels[key]) mircChannels[key] = { topic: defaultTopic, messages: [] };
+        if (!mircChannels[key].topic) mircChannels[key].topic = defaultTopic;
+        if (!Array.isArray(mircChannels[key].messages) || mircChannels[key].messages.length === 0) {
+          mircChannels[key].messages = messages;
+        }
+      };
+      seed('#umum', 'Obrolan santai seluruh penghuni kos Secang. Ketik /help untuk daftar perintah.', [
         { type: 'system', time: t, text: '*** Selamat datang di Jaringan Internal Kos Inu Kerta (Secang, Magelang).' },
         { type: 'chat', time: t, nick: '@AdminKos', role: 'admin', text: 'Halo semua penghuni kos! Kalau ada kendala Wi-Fi MikroTik atau lampu mati, kabari di sini ya.' },
         { type: 'chat', time: t, nick: '+Kamar01_Dimas', role: 'tenant', text: 'Siap Mas Inu, Wi-Fi Kamar 01 lancar jaya!' },
         { type: 'chat', time: t, nick: '+Kamar03_Rina', role: 'tenant', text: 'Nanti siang ada yang mau titip makan di Sedhah Ayu bareng?' }
-      ];
-      mircChannels['#pengumuman'].messages = [
+      ]);
+      seed('#pengumuman', 'Info resmi pengelola kos & promo menu harian Pondhok Dhahar Sedhah Ayu.', [
         { type: 'system', time: t, text: '*** Channel Pengumuman Resmi Pengelola Kos & Pondhok Dhahar Sedhah Ayu.' },
         { type: 'chat', time: t, nick: '@AdminKos', role: 'admin', text: 'Info: Menu spesial hari ini di Sedhah Ayu ada Nasi Sayur Lodeh & Ayam Lengkuas hangat!' }
-      ];
-      mircChannels['#titip-beli'].messages = [
+      ]);
+      seed('#titip-beli', 'Titip beli makan siang/malam di Sedhah Ayu, galon air, atau laundry bareng!', [
         { type: 'system', time: t, text: '*** Gunakan channel ini untuk titip beli makan, galon air, atau laundry.' }
-      ];
-      mircChannels['#mabar'].messages = [
+      ]);
+      seed('#mabar', 'Ajak mabar MLBB / PUBG / futsal sore anak kos.', [
         { type: 'system', time: t, text: '*** Ruang kumpul mabar & olahraga sore penghuni kos.' }
-      ];
+      ]);
     }
 
     // ==================== 2. UTILITIES ====================
@@ -3481,10 +3606,12 @@
     });
 
     // ==================== 10. INITIALIZATION ====================
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
+      await hydratePortalState();
       initDefaultSedhahMenu();
       initDefaultPromos();
       initDefaultMircLogs();
+      registerStateAutoSave();
       applySiteBrandConfig();
       applyTabTextsToDOM();
       renderNavigationTabs();
