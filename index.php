@@ -2863,7 +2863,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
     }
 
     async function radioApi(action, payload = {}) {
-      const res = await fetch('api/radio.php', {
+      const res = await fetch('php-api/radio.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(Object.assign({ action }, payload)),

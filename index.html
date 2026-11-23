@@ -1495,7 +1495,7 @@
     }
 
     async function loadPortalState() {
-      for (const endpoint of ['api/state.php', 'api/state']) {
+      for (const endpoint of ['php-api/state.php', 'api/state']) {
         try {
           const data = await fetchJson(endpoint, { headers: { Accept: 'application/json' } });
           if (!data || !data.ok) continue;
@@ -1507,7 +1507,7 @@
     }
 
     async function loadRadioStationsFromServer() {
-      for (const endpoint of ['api/radio.php', 'api/radio']) {
+      for (const endpoint of ['php-api/radio.php', 'api/radio']) {
         try {
           const data = await fetchJson(endpoint, { headers: { Accept: 'application/json' } });
           if (data && data.ok && Array.isArray(data.stations)) return data.stations;
@@ -1543,7 +1543,7 @@
       const json = JSON.stringify(state);
       if (json === lastSavedStateJson) return;
 
-      const endpoints = stateEndpoint ? [stateEndpoint] : ['api/state.php', 'api/state'];
+      const endpoints = stateEndpoint ? [stateEndpoint] : ['php-api/state.php', 'api/state'];
       for (const endpoint of endpoints) {
         try {
           const data = await fetchJson(endpoint, {
@@ -3004,7 +3004,7 @@
 
     async function radioApi(action, payload = {}) {
       const body = JSON.stringify(Object.assign({ action }, payload));
-      const endpoints = ['api/radio.php', 'api/radio'];
+      const endpoints = ['php-api/radio.php', 'api/radio'];
 
       for (const endpoint of endpoints) {
         let data = null;

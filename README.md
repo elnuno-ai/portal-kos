@@ -32,10 +32,10 @@ Catatan keamanan: gunakan service account / link-sharing read-only, jangan simpa
 
 `index.html` adalah versi statis untuk Vercel. Endpoint radio memakai dua jalur:
 
-- `api/radio.php` — dipakai saat jalan di XAMPP/MySQL.
+- `php-api/radio.php` — dipakai saat jalan di XAMPP/MySQL.
 - `api/radio.js` — Vercel Function (Node) yang menyimpan data ke Postgres.
 
-Frontend otomatis mencoba `api/radio.php` lebih dulu, lalu `api/radio`.
+Frontend otomatis mencoba `php-api/radio.php` lebih dulu, lalu `api/radio`.
 
 Langkah setup:
 
@@ -54,7 +54,7 @@ Batas yang berlaku: maksimal 5 stasiun, minimal 1 stasiun, URL stream wajib http
 Semua perubahan dari Panel Admin (identitas brand/logo, running text, kamar, promo, menu Sedhah Ayu, moderasi buku tamu, data penghuni, tab navigasi, radar lokasi, channel mIRC) serta registrasi penghuni dan buku tamu publik disimpan otomatis ke tabel `portal_state`:
 
 - `api/state.js` — Vercel Function (Postgres, kolom `JSONB`).
-- `api/state.php` — padanan untuk XAMPP/MySQL (kolom `LONGTEXT`).
+- `php-api/state.php` — padanan untuk XAMPP/MySQL (kolom `LONGTEXT`).
 
 Tabel `portal_state` dibuat otomatis pada request pertama. Simpan berjalan otomatis sekitar 0,7 detik setelah aksi terakhir, dan data dimuat lagi saat halaman dibuka. Stasiun radio tetap memakai tabel `radio_stations` sendiri.
 
