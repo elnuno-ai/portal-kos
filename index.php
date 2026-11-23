@@ -1,0 +1,3472 @@
+<?php
+$portalData = require __DIR__.'/config/portal_db.php';
+$jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP;
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title> Sedhah Ayu Grup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --win-bg: #c0c0c0;
+      --win-dark: #808080;
+      --win-darker: #404040;
+      --win-light: #ffffff;
+      --win-blue: #000080;
+      --win-blue-grad: #1084d0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #faf8f5;
+      color: #1c1917;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Running Text Marquee Animation */
+    @keyframes marqueeScroll {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+    .marquee-track {
+      display: inline-block;
+      white-space: nowrap;
+      animation: marqueeScroll 22s linear infinite;
+    }
+    .marquee-wrapper:hover .marquee-track {
+      animation-play-state: paused;
+    }
+
+    /* Retro Windows 98 / mIRC32 Styles */
+    .win98-window {
+      background-color: var(--win-bg);
+      border-top: 2px solid var(--win-light);
+      border-left: 2px solid var(--win-light);
+      border-right: 2px solid var(--win-darker);
+      border-bottom: 2px solid var(--win-darker);
+      box-shadow: inset -1px -1px 0 var(--win-dark), inset 1px 1px 0 #dfdfdf;
+      color: #000000;
+    }
+    .win98-inset {
+      background-color: #ffffff;
+      border-top: 2px solid var(--win-dark);
+      border-left: 2px solid var(--win-dark);
+      border-right: 2px solid var(--win-light);
+      border-bottom: 2px solid var(--win-light);
+      box-shadow: inset 1px 1px 0 var(--win-darker), inset -1px -1px 0 #dfdfdf;
+    }
+    .win98-btn {
+      background-color: var(--win-bg);
+      border-top: 2px solid var(--win-light);
+      border-left: 2px solid var(--win-light);
+      border-right: 2px solid var(--win-darker);
+      border-bottom: 2px solid var(--win-darker);
+      box-shadow: inset -1px -1px 0 var(--win-dark);
+      color: #000000;
+      cursor: pointer;
+      user-select: none;
+    }
+    .win98-btn:active, .win98-btn.active {
+      border-top: 2px solid var(--win-darker);
+      border-left: 2px solid var(--win-darker);
+      border-right: 2px solid var(--win-light);
+      border-bottom: 2px solid var(--win-light);
+      box-shadow: inset 1px 1px 0 var(--win-dark);
+    }
+    .win98-titlebar {
+      background: linear-gradient(90deg, var(--win-blue) 0%, var(--win-blue-grad) 100%);
+      color: #ffffff;
+      font-weight: bold;
+    }
+    .mirc-mono {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.48;
+    }
+    @keyframes flashTab {
+      0%, 100% { background-color: #c0c0c0; color: #000; }
+      50% { background-color: #800000; color: #fff; }
+    }
+    .mirc-tab-unread {
+      animation: flashTab 1.1s infinite;
+      font-weight: bold;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+
+  <!-- HEADER & MAIN NAVIGATION -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="flex items-center justify-between h-16 gap-3">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="switchMainTab('about')">
+          <div id="siteLogoBox" class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-700 to-stone-900 text-amber-50 flex items-center justify-center font-extrabold text-base shadow overflow-hidden shrink-0">
+            IK
+          </div>
+          <div>
+            <div id="siteTitleHeader" class="font-extrabold text-stone-900 text-sm sm:text-base leading-tight">Sedhah Ayu Grup</div>
+            <div id="siteSubtitleHeader" class="text-[11px] text-stone-500">Waroeng Djadoel & kosan</div>
+          </div>
+        </div>
+        <div id="authHeaderSlot" class="flex items-center gap-2"></div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav id="mainNavBar" class="flex items-center gap-1 overflow-x-auto pb-2 pt-1 no-scrollbar border-t border-stone-100">
+        <!-- Rendered dynamically via renderNavigationTabs() -->
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main id="mainTabPanelsContainer" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ==================== TAB 1: ABOUT US ==================== -->
+    <section id="tab-about" class="main-tab-panel space-y-5">
+      <!-- Hero Header -->
+      <div class="rounded-2xl bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white p-6 sm:p-10 shadow-xl">
+        <div class="max-w-3xl space-y-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold">
+            📍 Gintung, Jambewangi (belakang RS Soerojo) Magelang
+          </div>
+          <h1 id="aboutHeroTitle" class="text-2xl sm:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight">
+            Ekosistem Hunian Nyaman, Kuliner Jadoel & Solusi Digital Lokal.
+          </h1>
+          <p id="aboutHeroDesc" class="text-stone-300 text-sm sm:text-base leading-relaxed">
+            <strong>Sedhah Ayu Grup</strong>, platform ini menyatukan layanan hunian kos modern, warung makan tradisional <strong>Pondhok Dhahar "Sedhah Ayu"</strong>, serta menjadi tempat peomosi untuk UMKM Magelang.
+          </p>
+          <div class="pt-2 flex flex-wrap gap-3">
+            <button onclick="switchMainTab('kos')" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition shadow">
+              Cek Kamar Kos (<span id="heroAvailCount">4</span> Kosong)
+            </button>
+            <button onclick="switchMainTab('sedhah')" class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm border border-white/20 transition">
+              Menu Sedhah Ayu
+            </button>
+            <button onclick="switchMainTab('portal')" class="px-5 py-2.5 rounded-xl bg-stone-950/70 hover:bg-stone-950 text-amber-300 font-semibold text-sm border border-amber-500/30 transition">
+              Portal Penghuni & mIRC32 ➔
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DYNAMIC RUNNING TEXT TICKER (BETWEEN HERO AND 3 ECOSYSTEM CARDS) -->
+      <div id="runningTextContainer" class="rounded-xl bg-amber-900 text-amber-50 border border-amber-700 px-4 py-2.5 shadow-sm flex items-center gap-3 overflow-hidden">
+        <span class="bg-amber-400 text-stone-950 font-extrabold text-[11px] px-2.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+          📢 Info Terkini
+        </span>
+        <div class="marquee-wrapper flex-1 overflow-hidden">
+          <div id="runningTextMarquee" class="marquee-track text-xs sm:text-sm font-semibold">
+            Selamat datang di Sedhah Ayu! Tersedia kamar kos siap huni dengan Wi-Fi stabil & paket makan siang hemat di Pondhok Dhahar "Sedhah Ayu".
+          </div>
+        </div>
+      </div>
+
+      <!-- PWA PUSH NOTIFICATION SUBSCRIPTION BANNER -->
+      <div class="rounded-2xl bg-white border border-stone-200 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-start sm:items-center gap-3.5">
+          <div class="w-11 h-11 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center text-xl shrink-0">🔔</div>
+          <div>
+            <h3 class="font-bold text-sm sm:text-base text-stone-900">Aktifkan Notifikasi HP </h3>
+            <p class="text-xs text-stone-600 mt-0.5">Jangan lewatkan promo dari kami setiap minggunya</p>
+          </div>
+        </div>
+        <button type="button" id="btnSubscribePwa" onclick="togglePwaSubscription()" class="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shrink-0 transition">
+          🔔 Klik disini
+        </button>
+      </div>
+
+      <!-- 3 ECOSYSTEM PILLAR CARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-2xl">🏠</div>
+              <span id="cardKosLiveBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">4 dari 7 Kamar Kosong</span>
+            </div>
+            <h3 class="text-lg font-extrabold text-stone-900">Hunian Kos <span id="cardKosTotalTitle">7</span> Kamar</h3>
+            <p class="text-sm text-stone-600 mt-2 leading-relaxed">
+              Kos bersih, tenang, dan aman di Secang. Dilengkapi <strong>FREE</strong> jaringan WIFI, AIR, portal internal, dan grup obrolan mIRC32 penghuni.
+            </p>
+          </div>
+          <button onclick="switchMainTab('kos')" class="mt-5 text-sm font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1">
+            Lihat Daftar Kamar <span>→</span>
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-2xl">🍛</div>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200">Buka 06.30–16.30</span>
+            </div>
+            <h3 class="text-lg font-extrabold text-stone-900">Pondhok Dhahar "Sedhah Ayu"</h3>
+            <p class="text-sm text-stone-600 mt-2 leading-relaxed">
+              Warung makan nuansa jadoel dengan masakan rumahan hangat: aneka nasi sayur ndeso, ayam ungkep lengkuas, mendoan hangat, hingga paket tumpeng & catering acara.
+            </p>
+          </div>
+          <button onclick="switchMainTab('sedhah')" class="mt-5 text-sm font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1">
+            Jelajahi Menu Harian <span>→</span>
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-2xl">🚀</div>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">Inu Kerta</span>
+            </div>
+            <h3 class="text-lg font-extrabold text-stone-900">Digital Marketing & AI Workflow</h3>
+            <p class="text-sm text-stone-600 mt-2 leading-relaxed">
+              Layanan optimasi Google Maps / profil bisnis lokal, pembuatan landing page ringan, pemasaran digital, dan otomasi alur kerja berbasis AI untuk UMKM di Magelang.
+            </p>
+          </div>
+          <a href="https://wa.me/6281234567890?text=Halo%20Mas%20Inu,%20saya%20tertarik%20konsultasi%20Digital%20Marketing%20%26%20AI%20Workflow" target="_blank" class="mt-5 text-sm font-bold text-indigo-800 hover:text-indigo-950 flex items-center gap-1">
+            Konsultasi via WhatsApp <span>→</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: INFO KOS ==================== -->
+    <section id="tab-kos" class="main-tab-panel hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h2 id="kosHeaderTitle" class="text-2xl sm:text-3xl font-extrabold text-stone-900">Katalog & Ketersediaan Kamar Kos</h2>
+          <p id="kosHeaderDesc" class="text-sm text-stone-600 mt-1">Total <span id="kosTotalHeaderCount">7</span> unit kamar • Jaringan MikroTik RB750Gr3 Hotspot (Batas 2 perangkat aktif/kamar).</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+          <span class="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200" id="kosSummaryAvailable">● 4 Tersedia</span>
+          <span class="px-3 py-1.5 rounded-lg bg-stone-200 text-stone-700" id="kosSummaryOccupied">● 3 Terisi</span>
+          <span class="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-200" id="kosSummaryRenovation">● 0 Renovasi</span>
+        </div>
+      </div>
+
+      <div id="roomsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- ==================== TAB 3: SEDHAH AYU ==================== -->
+    <section id="tab-sedhah" class="main-tab-panel hidden space-y-6">
+      <div class="rounded-2xl bg-amber-900 text-amber-50 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md">
+        <div class="space-y-2 max-w-2xl">
+          <span class="text-xs uppercase tracking-widest text-amber-300 font-bold">Warung Jadoel & Catering Rumahan</span>
+          <h2 id="sedhahHeaderTitle" class="text-3xl sm:text-4xl font-extrabold">Pondhok Dhahar "Sedhah Ayu"</h2>
+          <p id="sedhahHeaderDesc" class="text-sm text-amber-100/90 leading-relaxed">
+            Cita rasa masakan tradisional Jawa rumahan hangat setiap hari pukul <strong>06.30 – 20.30 WIB</strong>. Khusus penghuni kos tersedia layanan titip antar langsung lewat grup obrolan!
+          </p>
+        </div>
+        <a href="https://wa.me/6281234567890?text=Halo%20Pondhok%20Dhahar%20Sedhah%20Ayu,%20saya%20mau%20pesan%20menu%20hari%20ini" target="_blank"
+          class="px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-sm shrink-0 shadow transition">
+          📲 Pesan Langsung via WA
+        </a>
+      </div>
+
+      <div id="sedhahMenuGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- ==================== TAB 4: PROMO & TITIP JUAL ==================== -->
+    <section id="tab-promo" class="main-tab-panel hidden space-y-6">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 id="promoHeaderTitle" class="text-2xl sm:text-3xl font-extrabold text-stone-900">Promo & Etalase Titip Jual UMKM</h2>
+          <p id="promoHeaderDesc" class="text-sm text-stone-600 mt-1">Penawaran kamar kos, menu harian Sedhah Ayu, serta produk titip jual warga sekitar (Format visual IG 1:1).</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" id="btnPromoBell" onclick="togglePwaSubscription()" class="px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 text-xs font-bold transition">
+            🔔 Aktifkan Info Promo Harian
+          </button>
+          <div class="flex flex-wrap gap-1.5" id="promoFilterBar">
+            <button onclick="filterPromos('all')" data-cat="all" class="promo-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-900 text-white">Semua</button>
+            <button onclick="filterPromos('kos')" data-cat="kos" class="promo-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-stone-200 text-stone-700 hover:bg-stone-100">Promo Kos</button>
+            <button onclick="filterPromos('resto')" data-cat="resto" class="promo-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-stone-200 text-stone-700 hover:bg-stone-100">Sedhah Ayu</button>
+            <button onclick="filterPromos('mitra')" data-cat="mitra" class="promo-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-stone-200 text-stone-700 hover:bg-stone-100">Titip Jual UMKM</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="promoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </section>
+
+    <!-- ==================== TAB 5: BUKU TAMU ==================== -->
+    <section id="tab-tamu" class="main-tab-panel hidden space-y-8">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div class="lg:col-span-5 bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-800">Jejak Kunjungan</span>
+            <h3 id="tamuHeaderTitle" class="text-2xl font-extrabold text-stone-900 mt-0.5">Isi Buku Tamu</h3>
+            <p id="tamuHeaderDesc" class="text-xs text-stone-500 mt-1">Foto otomatis dikompres ke format <strong>.WebP</strong> ringan dan tampil setelah diverifikasi Admin.</p>
+          </div>
+
+          <form id="guestbookForm" class="space-y-3.5 text-sm">
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1">Nama Pengunjung *</label>
+              <input type="text" id="gbName" required placeholder="Contoh: Keluarga Pak Hendra"
+                class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1">Kategori Kunjungan</label>
+              <select id="gbCategory" class="w-full px-3.5 py-2 rounded-xl border border-stone-300 bg-white focus:outline-none focus:border-amber-700">
+                <option value="Pelanggan Sedhah Ayu">🍛 Pelanggan Pondhok Dhahar Sedhah Ayu</option>
+                <option value="Tamu / Alumni Penghuni Kos">🏠 Tamu / Alumni Penghuni Kos</option>
+                <option value="Mitra UMKM / Klien Digital">🤝 Mitra UMKM / Klien Digital</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1">Pesan & Kesan *</label>
+              <textarea id="gbMessage" rows="3" required placeholder="Tulis testimoni kunjungan Anda..."
+                class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1">Foto Kunjungan (Auto Kompres WebP)</label>
+              <input type="file" id="gbPhotoInput" accept="image/*"
+                class="w-full text-xs text-stone-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-900 hover:file:bg-amber-100" />
+              <div id="gbPhotoPreviewWrap" class="hidden mt-2 relative">
+                <img id="gbPhotoPreview" alt="Preview WebP" class="w-full h-36 object-cover rounded-xl border border-stone-200" />
+                <span id="gbCompressionInfo" class="absolute bottom-2 right-2 bg-black/75 text-white text-[10px] px-2 py-0.5 rounded">WebP Ready</span>
+              </div>
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-sm transition shadow">
+              Kirim ke Moderasi Admin
+            </button>
+          </form>
+        </div>
+
+        <div class="lg:col-span-7 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-stone-900 text-lg">Buku Tamu Terverifikasi</h3>
+            <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold">✓ Terverifikasi Admin</span>
+          </div>
+          <div id="verifiedGuestbookList" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 6: PORTAL KOS (INTERNAL) ==================== -->
+    <section id="tab-portal" class="main-tab-panel hidden">
+      <!-- A. JIKA BELUM LOGIN -->
+      <div id="portalAuthContainer" class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
+          <div class="bg-stone-900 text-white p-6">
+            <span class="text-xs uppercase tracking-wider text-amber-400 font-bold">Zona Internal Penghuni Terdaftar</span>
+            <h2 class="text-2xl font-extrabold mt-1">Portal Internal Anak Kos</h2>
+            <p class="text-xs text-stone-300 mt-1">Masuk dengan ID Kamar aktif, atau daftarkan diri menggunakan Kode Rekomendasi Kamar dari Admin.</p>
+          </div>
+
+          <div class="grid grid-cols-2 border-b border-stone-200 bg-stone-50">
+            <button id="subtabBtnSignIn" onclick="switchPortalAuthSubtab('signin')" class="py-3.5 text-xs sm:text-sm font-bold border-b-2 border-amber-700 text-amber-900 bg-white">
+              🔑 Sign In Penghuni / Admin
+            </button>
+            <button id="subtabBtnRegister" onclick="switchPortalAuthSubtab('register')" class="py-3.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-stone-600 hover:text-stone-900">
+              📝 Registrasi Penghuni Baru
+            </button>
+          </div>
+
+          <!-- SUBTAB 1: SIGN IN -->
+          <div id="portalSubtab-signin" class="p-6 space-y-5">
+            <form id="loginForm" class="space-y-4 text-sm">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">ID Kamar / Username</label>
+                <input type="text" id="loginUsername" required placeholder="Contoh: kamar01 atau admin"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">PIN Akses</label>
+                <input type="password" id="loginPin" required placeholder="Masukkan PIN 4 digit"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+              </div>
+              <button type="submit" class="w-full py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-sm transition shadow">
+                Masuk ke Portal Internal ➔
+              </button>
+            </form>
+          </div>
+
+          <!-- SUBTAB 2: REGISTRASI PENGHUNI BARU -->
+          <div id="portalSubtab-register" class="hidden p-6 space-y-5">
+            <!-- Validasi Kode Rekomendasi Admin -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-1">
+                <label class="text-xs font-bold text-amber-950">1. Kode Rekomendasi Kamar dari Admin *</label>
+                <span class="text-[11px] text-amber-800">Contoh aktif:
+                  <button type="button" onclick="applySamplePromoCode('KMR02-BIMA')" class="underline font-mono-code font-bold">KMR02-BIMA</button> /
+                  <button type="button" onclick="applySamplePromoCode('KMR05-SARI')" class="underline font-mono-code font-bold">KMR05-SARI</button>
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <input type="text" id="regInviteCode" placeholder="Contoh: KMR02-BIMA"
+                  class="flex-1 px-3 py-2 rounded-lg border border-amber-300 bg-white font-mono-code text-sm uppercase focus:outline-none focus:border-amber-700" />
+                <button type="button" onclick="validateInviteCodeInput()" class="px-4 py-2 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shrink-0">
+                  Cek Kode
+                </button>
+              </div>
+              <div id="inviteCodeValidatedBox" class="hidden bg-white rounded-lg p-3 border border-emerald-300 text-xs flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span class="text-emerald-700 font-bold">✓ Kode Valid!</span>
+                  <span class="text-stone-700 ml-1">Alokasi: <strong id="valRoomLabel" class="text-stone-900">Kamar 02</strong></span>
+                </div>
+                <div class="font-mono-code bg-stone-100 px-2 py-0.5 rounded border border-stone-300 text-blue-900 font-bold">
+                  Nickname: <span id="valNickLabel">+Kamar02_Bima</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Form Biodata Lengkap -->
+            <form id="registerTenantForm" class="space-y-4 text-sm">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">Nama Lengkap (Sesuai KTP) *</label>
+                  <input type="text" id="regFullName" required placeholder="Contoh: Bima Sakti Pratama"
+                    class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">Buat PIN Login (4 Digit) *</label>
+                  <input type="text" id="regNewPin" maxlength="4" pattern="\d{4}" required placeholder="Contoh: 2026"
+                    class="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono-code focus:outline-none focus:border-amber-700" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">Nomor Seluler / WhatsApp Aktif *</label>
+                  <input type="tel" id="regPhone" required placeholder="Contoh: 081234567890"
+                    class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">Nomor Kontak Darurat (Ortu/Wali) *</label>
+                  <input type="tel" id="regEmergencyPhone" required placeholder="Contoh: 085711223344 (Ibu)"
+                    class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Alamat Asli (Sesuai KTP) *</label>
+                <textarea id="regOriginAddress" rows="2" required placeholder="Jl. Merdeka No. 12, RT 02/RW 04, Kab. Magelang"
+                  class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700"></textarea>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">Profesi / Status *</label>
+                  <select id="regProfession" required class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white focus:outline-none focus:border-amber-700">
+                    <option value="Mahasiswa">Mahasiswa</option>
+                    <option value="Karyawan Swasta">Karyawan Swasta</option>
+                    <option value="ASN / Pegawai Instansi">ASN / Pegawai Instansi</option>
+                    <option value="Wirausaha / Freelancer">Wirausaha / Freelancer</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">Nama Kantor / Kampus / Sekolah *</label>
+                  <input type="text" id="regWorkplace" required placeholder="Contoh: Universitas Tidar"
+                    class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+                </div>
+              </div>
+
+              <!-- Keterangan & Tautan Follow Media Sosial -->
+              <div class="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2.5">
+                <div class="text-xs font-bold text-stone-800">📱 Keterangan Follow Media Sosial Resmi Kos & Sedhah Ayu</div>
+                <p class="text-[11px] text-stone-600 leading-relaxed">
+                  Silakan ikuti akun resmi kami untuk mendapatkan update jadwal kebersihan, promo menu harian <strong>Sedhah Ayu</strong>, dan info lingkungan Secang:
+                </p>
+                <div class="flex flex-wrap gap-1.5 text-[11px] font-bold">
+                  <a href="https://instagram.com/sedhahayu" target="_blank" class="px-2.5 py-1 rounded-lg bg-pink-50 text-pink-800 border border-pink-200 hover:bg-pink-100">Instagram @sedhahayu.kos</a>
+                  <a href="https://tiktok.com/sedhahayu" target="_blank" class="px-2.5 py-1 rounded-lg bg-stone-200 text-stone-900 hover:bg-stone-300">TikTok @inukerta.hub</a>
+                  <a href="https://facebook.com/sedhahayu" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100">Facebook Pondhok Sedhah Ayu</a>
+                  <a href="https://threads.net/sedhahayu" target="_blank" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-800 border border-neutral-300 hover:bg-neutral-200">Threads @inukerta</a>
+                </div>
+                <div class="pt-1">
+                  <input type="text" id="regSocialHandle" placeholder="Username IG / TikTok Anda (Opsional, misal: @bimasakti)"
+                    class="w-full px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-xs focus:outline-none focus:border-amber-700" />
+                </div>
+              </div>
+
+              <!-- Upload Foto KTP -->
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Upload Foto KTP (Auto Kompres WebP) *</label>
+                <input type="file" id="regKtpInput" accept="image/*"
+                  class="w-full text-xs text-stone-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-stone-100 file:text-stone-800 hover:file:bg-stone-200" />
+                <div id="regKtpPreviewBox" class="hidden mt-2 p-2 rounded-xl border border-stone-200 bg-stone-50 flex items-center gap-3">
+                  <img id="regKtpPreviewImg" alt="Preview KTP" class="w-28 h-16 object-cover rounded border border-stone-300" />
+                  <div class="text-xs">
+                    <div class="font-bold text-emerald-800">✓ Dokumen KTP Terlampir (WebP)</div>
+                    <div class="text-stone-500 text-[11px]">Disimpan aman untuk arsip administrasi pengelola kos.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tata Tertib Kos -->
+              <div class="space-y-2 pt-1">
+                <label class="block text-xs font-bold text-stone-700">Tata Tertib & Aturan Kos (Wajib Dibaca) *</label>
+                <div class="h-32 overflow-y-auto p-3.5 rounded-xl bg-stone-100 border border-stone-300 text-xs text-stone-700 space-y-2 leading-relaxed">
+                  <p class="font-bold text-stone-900">PERATURAN PENGHUNI KOS SEDHAHAYU — GINTUNG, JAMBEWANGI:</p>
+                  <p>1. <strong>Jam Malam & Tamu:</strong> Pintu gerbang dikunci pukul 22.30 WIB. Tamu lawan jenis dilarang masuk ke dalam kamar; batas bertamu di area teras pukul 21.00 WIB.</p>
+                  <p>2. <strong>Jaringan Wi-Fi:</strong> Setiap kamar mendapat alokasi maksimal <strong>2 perangkat aktif</strong>. Dilarang membagikan akun Wi-Fi ke pihak luar.</p>
+                  <p>3. <strong>Kebersihan & Fasilitas Bersama:</strong> Wajib menjaga kebersihan kamar, kamar mandi, serta area dapur bersama.</p>
+                  <p>4. <strong>Pembayaran Sewa:</strong> Pembayaran sewa dilakukan sesuai tanggal jatuh tempo bulanan dan dipantau melalui tab Tagihan & Wi-Fi.</p>
+                </div>
+
+                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/80 border border-amber-200 cursor-pointer select-none">
+                  <input type="checkbox" id="regAgreeRules" class="mt-0.5 w-4 h-4 accent-amber-800 rounded" />
+                  <span class="text-xs font-semibold text-stone-800">
+                    Saya telah membaca seluruh aturan kos di atas dan bersedia menaatinya, serta menjamin keaslian data & KTP yang saya unggah.
+                  </span>
+                </label>
+              </div>
+
+              <button type="submit" class="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm transition shadow-md">
+                ✅ Aktifkan Akun & Gabung Grup mIRC32
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- B. JIKA SUDAH LOGIN: WORKSPACE INTERNAL ANAK KOS -->
+      <div id="portalWorkspaceContainer" class="hidden space-y-4">
+        <div class="bg-white rounded-2xl p-2 border border-stone-200 shadow-sm flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button onclick="switchInternalSubView('mirc')" data-subview="mirc" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-900 text-white flex items-center gap-1.5">
+              <span>💬</span> <span>mIRC32 Live Chat</span>
+            </button>
+            <button onclick="switchInternalSubView('billing')" data-subview="billing" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
+              <span>💳</span> <span>Tagihan & Wi-Fi</span>
+            </button>
+            <button onclick="switchInternalSubView('radar')" data-subview="radar" class="internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5">
+              <span>📍</span> <span>Radar Lokasi Sekitar</span>
+            </button>
+          </div>
+          <div class="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-mono-code font-bold text-emerald-900" id="internalUserBadge">
+            +Kamar01_Dimas • Online
+          </div>
+        </div>
+
+        <!-- MINI RADIO ONLINE PLAYER BAR (PERSISTENT ACROSS SUB-VIEWS) -->
+        <div class="win98-window px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="bg-blue-950 text-amber-300 font-mono-code font-extrabold px-2 py-0.5 border border-black shrink-0">📻 RADIO KOS</span>
+            <select id="kosRadioStationSelect" onchange="changeRadioStation()" class="win98-inset px-2 py-1 text-xs font-semibold text-stone-900 bg-white truncate max-w-[220px] sm:max-w-xs focus:outline-none">
+              <!-- Populated dynamically -->
+            </select>
+            <span id="kosRadioStatusBadge" class="hidden md:inline-block px-2 py-0.5 text-[11px] font-mono-code bg-stone-200 text-stone-700 border border-stone-400">
+              ● Standby
+            </span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button type="button" id="btnRadioPlayToggle" onclick="toggleKosRadioPlayback()" class="win98-btn px-3 py-1 font-bold text-xs flex items-center gap-1">
+              ▶ Play
+            </button>
+            <button type="button" onclick="stopKosRadioPlayback()" class="win98-btn px-2.5 py-1 font-bold text-xs">
+              ■ Stop
+            </button>
+            <div class="flex items-center gap-1 pl-1">
+              <span class="text-[11px] font-bold text-stone-700">🔊</span>
+              <input type="range" id="kosRadioVolume" min="0" max="1" step="0.05" value="0.7" oninput="updateKosRadioVolume(this.value)" class="w-16 sm:w-20 accent-blue-900 cursor-pointer" />
+            </div>
+          </div>
+          <audio id="kosRadioAudioEl" preload="none" crossorigin="anonymous"></audio>
+        </div>
+
+        <!-- SUB-VIEW 1: mIRC32 LIVE CHAT -->
+        <div id="internal-mirc" class="internal-subview">
+          <div class="win98-window flex flex-col h-[560px] sm:h-[600px] overflow-hidden shadow-xl">
+            <div class="win98-titlebar px-2.5 py-1.5 text-xs sm:text-sm flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-2 truncate">
+                <span class="bg-yellow-300 text-blue-950 font-mono-code font-black px-1 text-xs border border-black">mIRC32</span>
+                <span class="truncate">Internal Kos Chat - [<span id="mircActiveChanHeader">#umum</span>] - <span id="mircNickHeader" class="text-yellow-200">+Kamar01</span></span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span class="hidden sm:inline-block bg-green-700 text-white text-[11px] px-1.5 py-0.5 border border-white/40 font-mono-code">● SYNC LIVE</span>
+                <button type="button" id="btnMircSound" onclick="toggleMircSound()" class="win98-btn px-2 py-0.5 text-xs font-bold">🔊 Beep: ON</button>
+                <button type="button" onclick="toggleMircMobileUsers()" class="md:hidden win98-btn px-2 py-0.5 text-xs font-bold">👥 Users</button>
+              </div>
+            </div>
+
+            <div id="mircChannelTabs" class="bg-[#b0b0b0] border-b border-[#808080] px-1.5 pt-1 flex items-center gap-1 overflow-x-auto shrink-0"></div>
+
+            <div class="bg-[#dfdfdf] border-b border-[#808080] px-2.5 py-1 text-xs font-mono-code text-gray-800 flex items-center justify-between gap-2 shrink-0">
+              <div class="truncate">
+                <span class="font-bold text-blue-900">Topic:</span>
+                <span id="mircTopicDisplay">Obrolan internal penghuni kos terdaftar. Ketik /help untuk bantuan perintah.</span>
+              </div>
+              <span id="mircClock" class="text-[11px] text-gray-600 shrink-0 hidden sm:inline">12:00:00</span>
+            </div>
+
+            <div class="flex-1 flex overflow-hidden relative">
+              <div id="mircMessagesBox" class="win98-inset flex-1 m-1 mr-0.5 p-2.5 overflow-y-auto mirc-mono select-text break-words space-y-1"></div>
+
+              <div id="mircUserDrawer" class="hidden md:flex flex-col w-52 win98-inset m-1 ml-0.5 bg-white shrink-0 z-20 md:static absolute right-0 top-0 bottom-0 shadow-xl md:shadow-none">
+                <div class="bg-[#dfdfdf] border-b border-gray-400 px-2 py-1 text-xs font-bold flex items-center justify-between">
+                  <span>Penghuni Online (<span id="mircUserCount">0</span>)</span>
+                  <button type="button" onclick="toggleMircMobileUsers()" class="md:hidden text-xs font-bold px-1.5 bg-red-700 text-white">✕</button>
+                </div>
+                <div id="mircUserList" class="flex-1 overflow-y-auto p-1.5 mirc-mono text-xs space-y-0.5"></div>
+                <div class="bg-[#f0f0f0] border-t border-gray-300 p-1.5 text-[11px] text-gray-600 leading-tight">
+                  💡 Klik nama penghuni untuk <strong>Private Message (PM)</strong>.
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[#c0c0c0] px-2 pt-1 flex items-center gap-1 overflow-x-auto shrink-0 text-[11px]">
+              <span class="text-gray-700 font-bold shrink-0">Perintah:</span>
+              <button type="button" onclick="insertMircCmd('/me ')" class="win98-btn px-1.5 py-0.5 font-mono-code">/me aksi</button>
+              <button type="button" onclick="insertMircCmd('/nick ')" class="win98-btn px-1.5 py-0.5 font-mono-code">/nick nama</button>
+              <button type="button" onclick="insertMircCmd('/msg @AdminKos ')" class="win98-btn px-1.5 py-0.5 font-mono-code">/msg @AdminKos</button>
+              <button type="button" onclick="executeMircCommand('/clear')" class="win98-btn px-1.5 py-0.5 font-mono-code">/clear</button>
+              <button type="button" onclick="executeMircCommand('/help')" class="win98-btn px-1.5 py-0.5 font-mono-code">/help</button>
+            </div>
+
+            <form id="mircChatForm" class="p-1.5 flex items-center gap-1.5 shrink-0 bg-[#c0c0c0]">
+              <div id="mircInputBadge" class="px-2 py-1.5 text-xs font-mono-code font-bold text-blue-950 hidden sm:block shrink-0 bg-[#dfdfdf] border border-gray-500">
+                +Kamar01
+              </div>
+              <input type="text" id="mircChatInput" autocomplete="off" placeholder="Ketik pesan ke penghuni kos... (atau /help)"
+                class="win98-inset flex-1 px-2.5 py-2 mirc-mono text-sm bg-white focus:outline-none" />
+              <button type="submit" class="win98-btn px-4 py-2 font-bold text-xs sm:text-sm shrink-0">Kirim ↵</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- SUB-VIEW 2: TAGIHAN & WI-FI -->
+        <div id="internal-billing" class="internal-subview hidden space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="font-extrabold text-lg text-stone-900">Status Tagihan Kos</h3>
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">LUNAS</span>
+              </div>
+              <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-stone-500">Unit Kamar</span><span class="font-bold text-stone-900" id="billingRoomName">Kamar 01</span></div>
+                <div class="flex justify-between"><span class="text-stone-500">Penghuni Terdaftar</span><span class="font-bold text-stone-900" id="billingTenantName">Dimas Pratama</span></div>
+                <div class="flex justify-between"><span class="text-stone-500">Tarif Bulanan</span><span class="font-bold text-stone-900" id="billingAmount">Rp 650.000</span></div>
+                <div class="flex justify-between"><span class="text-stone-500">Jatuh Tempo</span><span class="font-semibold text-amber-800" id="billingDueDate">10 Desember 2026</span></div>
+              </div>
+              <button type="button" onclick="confirmBillingViaChat()" class="w-full py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs sm:text-sm transition">
+                📨 Kirim Konfirmasi Bayar ke @AdminKos
+              </button>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="font-extrabold text-lg text-stone-900">Wi-Fi MikroTik Kamar</h3>
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">Shared Users: Max 2</span>
+              </div>
+              <div class="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-2.5 text-xs sm:text-sm">
+                <div class="flex justify-between"><span class="text-stone-600">SSID Hotspot</span><span class="font-mono-code font-bold text-blue-950">KOS-INUKERTA-5G</span></div>
+                <div class="flex justify-between items-center">
+                  <span class="text-stone-600">Username Kamar</span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="wifiUserDisplay" class="font-mono-code font-extrabold text-stone-900 bg-white px-2 py-0.5 rounded border border-blue-200">kamar01</span>
+                    <button type="button" onclick="copyWifiCredential('user')" class="px-2 py-0.5 rounded bg-blue-900 text-white text-[11px] font-bold hover:bg-blue-950">Salin</button>
+                  </div>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-stone-600">Password Unik</span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="wifiPassDisplay" class="font-mono-code font-extrabold text-emerald-900 bg-white px-2 py-0.5 rounded border border-emerald-300">kos01#882</span>
+                    <button type="button" onclick="copyWifiCredential('pass')" class="px-2 py-0.5 rounded bg-emerald-700 text-white text-[11px] font-bold hover:bg-emerald-800">Salin</button>
+                  </div>
+                </div>
+                <div class="flex justify-between"><span class="text-stone-600">Batas Perangkat</span><span class="font-bold text-emerald-800">Maksimal 2 HP/Laptop Aktif</span></div>
+                <div class="pt-2 border-t border-blue-200 text-[11px] text-stone-700 leading-relaxed">
+                  💡 <strong>Tips Koneksi Stabil:</strong> Matikan fitur <em>MAC Acak / Private Wi-Fi Address</em> (pilih <strong>Gunakan MAC Perangkat</strong>) di pengaturan Wi-Fi HP Anda agar kuota 2 perangkat tidak terhitung ganda.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-VIEW 3: RADAR LOKASI SEKITAR -->
+        <div id="internal-radar" class="internal-subview hidden space-y-5">
+          <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 id="radarHeaderTitle" class="text-2xl font-extrabold text-stone-900">Radar Lokasi Sekitar Kos (Secang, Magelang)</h3>
+                <p id="radarHeaderDesc" class="text-xs sm:text-sm text-stone-600">Fasilitas penting di sekitar kos lengkap dengan jarak dan kontak cepat.</p>
+              </div>
+              <a href="https://maps.google.com/?q=Secang+Magelang" target="_blank" class="px-4 py-2 rounded-xl bg-stone-900 text-white text-xs font-bold shrink-0">
+                🗺️ Buka Google Maps Secang
+              </a>
+            </div>
+            <div class="rounded-2xl bg-gradient-to-br from-emerald-950 via-stone-900 to-stone-950 text-white p-5 border border-stone-700">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" id="nearbyLocationsGrid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DYNAMIC CUSTOM TABS CONTAINER -->
+    <div id="customTabPanelsSlot"></div>
+
+    <!-- ==================== TAB 7: PANEL ADMIN ==================== -->
+    <section id="tab-admin" class="main-tab-panel hidden space-y-6">
+      <div class="bg-red-950 text-white rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs uppercase tracking-wider text-amber-300 font-bold">Pusat Kendali Pengelola Kos & Usaha</span>
+          <h2 class="text-2xl font-extrabold">Panel Administrasi Terpadu</h2>
+        </div>
+        <button onclick="logoutPortal()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold border border-white/20">
+          Keluar Mode Admin
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 0. IDENTITAS BRAND, LOGO, TITLE, SUBTITLE & FOOTER -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 class="font-extrabold text-lg text-stone-900">🎨 Pengaturan Identitas Website, Logo & Footer</h3>
+              <p class="text-xs text-stone-600 mt-0.5">Ubah logo (inisial/ikon atau unggah gambar logo), judul utama header, subjudul, serta teks footer website.</p>
+            </div>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 self-start sm:self-auto">Branding Global</span>
+          </div>
+
+          <form id="adminSiteBrandForm" class="grid grid-cols-1 md:grid-cols-12 gap-4 text-sm items-start">
+            <div class="md:col-span-4 p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2.5">
+              <label class="block text-xs font-bold text-stone-800">Logo Website (Teks Inisial / Upload Gambar)</label>
+              <div class="flex items-center gap-3">
+                <div id="adminBrandLogoPreview" class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-700 to-stone-900 text-amber-50 flex items-center justify-center font-extrabold text-base shadow overflow-hidden shrink-0">
+                  IK
+                </div>
+                <div class="flex-1 space-y-1.5">
+                  <input type="text" id="adminBrandLogoText" maxlength="4" placeholder="Inisial (Misal: IK)" class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-bold" />
+                  <input type="file" id="adminBrandLogoInput" accept="image/*" class="w-full text-[11px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-amber-100 file:text-amber-950 font-semibold" />
+                </div>
+              </div>
+              <div class="flex justify-end">
+                <button type="button" onclick="resetBrandLogoImage()" class="text-[11px] text-stone-500 hover:text-red-700 underline">Gunakan Logo Inisial Teks</button>
+              </div>
+            </div>
+
+            <div class="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Title Utama Header & Tab Browser *</label>
+                <input type="text" id="adminBrandTitle" required placeholder="Ekosistem Hub • Kos & Sedhah Ayu" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs sm:text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Subtitle Header *</label>
+                <input type="text" id="adminBrandSubtitle" required placeholder="Inu Kerta • Secang, Kab. Magelang" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs sm:text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Teks Footer Kiri (Nama Brand & Alamat) *</label>
+                <input type="text" id="adminBrandFooterLeft" required class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Teks Footer Kanan (Keterangan Teknis)</label>
+                <input type="text" id="adminBrandFooterRight" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs" />
+              </div>
+              <div class="sm:col-span-2 pt-1">
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs sm:text-sm shadow">
+                  💾 Simpan Identitas Brand, Logo & Footer
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- 1. KELOLA RUNNING TEXT HALAMAN DEPAN -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-lg text-stone-900">📢 Kelola Running Text Halaman Depan</h3>
+          <form id="adminRunningTextForm" class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1">Teks Berjalan (Ditampilkan di Tab About Us)</label>
+              <textarea id="adminTickerTextInput" rows="2" required class="w-full px-3 py-2 rounded-xl border border-stone-300"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Kecepatan</label>
+                <select id="adminTickerSpeed" class="w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white text-xs">
+                  <option value="32s">Lambat</option>
+                  <option value="22s" selected>Normal</option>
+                  <option value="13s">Cepat</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Warna Tema</label>
+                <select id="adminTickerColor" class="w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white text-xs">
+                  <option value="amber">Cokelat Emas (Default)</option>
+                  <option value="emerald">Hijau Zamrud</option>
+                  <option value="red">Merah Pengumuman</option>
+                  <option value="stone">Hitam Elegan</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Status</label>
+                <select id="adminTickerActive" class="w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white text-xs">
+                  <option value="true">Aktif (Tampil)</option>
+                  <option value="false">Sembunyikan</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs sm:text-sm">
+              💾 Simpan & Perbarui Running Text
+            </button>
+          </form>
+        </div>
+
+        <!-- 2. KELOLA UNIT KAMAR (TAMBAH KAMAR & STATUS RENOVASI) -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-lg text-stone-900">🏠 Kelola Unit Kamar & Status Renovasi</h3>
+          <form id="adminAddRoomForm" class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <input type="text" id="newRoomName" required placeholder="Nama (Misal: Kamar 08)" class="px-3 py-2 rounded-xl border border-stone-300" />
+            <input type="text" id="newRoomFloor" required placeholder="Lantai / Ukuran" class="px-3 py-2 rounded-xl border border-stone-300" />
+            <div class="flex gap-1.5">
+              <input type="text" id="newRoomPrice" required placeholder="Tarif (Rp 650.000)" class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+              <button type="submit" class="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold shrink-0">+ Tambah</button>
+            </div>
+          </form>
+
+          <div id="adminRoomsManageList" class="space-y-2 max-h-48 overflow-y-auto text-xs"></div>
+        </div>
+
+        <!-- 3. GENERATOR KODE REKOMENDASI KAMAR -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-lg text-stone-900">🔑 Terbitkan Kode Rekomendasi Kamar</h3>
+          <form id="adminGenerateCodeForm" class="space-y-3 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Pilih Kamar Tersedia</label>
+                <select id="adminSelectVacantRoom" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Nickname Penghuni</label>
+                <input type="text" id="adminTargetNickname" required placeholder="Contoh: Raka" class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+              </div>
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs sm:text-sm">
+              + Buat Kode Rekomendasi
+            </button>
+          </form>
+          <div id="adminActiveCodesList" class="space-y-1.5 text-xs max-h-36 overflow-y-auto"></div>
+        </div>
+
+        <!-- 4. MUTASI / PINDAH KAMAR PENGHUNI -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-lg text-stone-900">🔄 Mutasi / Pindah Kamar Penghuni</h3>
+          <p class="text-xs text-stone-600">Pindahkan penghuni aktif ke kamar kosong lain tanpa registrasi ulang; nickname mIRC32 otomatis diperbarui.</p>
+          <form id="adminMoveRoomForm" class="space-y-3 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Penghuni Aktif</label>
+                <select id="adminMoveTenantSelect" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Pindah ke Kamar Tujuan</label>
+                <select id="adminMoveTargetRoomSelect" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"></select>
+              </div>
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-800 hover:bg-indigo-900 text-white font-bold text-xs sm:text-sm">
+              🔄 Proses Pindah Kamar Sekarang
+            </button>
+          </form>
+        </div>
+
+        <!-- 5. TERBITKAN PROMO & TITIP JUAL (GAMBAR 1:1 IG) -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-lg text-stone-900">🎁 Terbitkan Promo & Titip Jual (IG 1:1)</h3>
+          <form id="adminAddPromoForm" class="space-y-3 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Judul Promo / Produk *</label>
+                <input type="text" id="adminPromoTitle" required placeholder="Contoh: Jumat Berkah Sedhah Ayu" class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Kategori *</label>
+                <select id="adminPromoCategory" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white">
+                  <option value="resto">🍛 Pondhok Dhahar Sedhah Ayu</option>
+                  <option value="kos">🏠 Promo Hunian Kos</option>
+                  <option value="mitra">🤝 Titip Jual UMKM</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Label Harga / Diskon *</label>
+                <input type="text" id="adminPromoBadge" required placeholder="Contoh: Gratis Es Teh / Rp 12.000" class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">Upload Gambar (Auto Crop 1:1 IG)</label>
+                <input type="file" id="adminPromoImageInput" accept="image/*" class="w-full text-xs text-stone-600 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:bg-amber-50 file:text-amber-900" />
+              </div>
+            </div>
+            <div id="adminPromoSquarePreviewWrap" class="hidden flex items-center gap-3 p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+              <img id="adminPromoSquarePreview" alt="Preview 1:1" class="w-20 h-20 object-cover rounded-lg border border-stone-300" />
+              <span class="text-xs font-bold text-emerald-800">✓ Gambar otomatis dipotong persegi 1:1 (800x800 WebP)</span>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1">Deskripsi Singkat *</label>
+              <textarea id="adminPromoDesc" rows="2" required placeholder="Detail syarat promo atau spesifikasi produk titip jual..." class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs"></textarea>
+            </div>
+            <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 cursor-pointer">
+              <input type="checkbox" id="adminPromoNotifyCheck" checked class="w-4 h-4 accent-amber-800 rounded" />
+              <span>🔔 Kirim Push Notification HP & umumkan ke #pengumuman mIRC32</span>
+            </label>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs sm:text-sm">
+              🚀 Terbitkan Promo Sekarang
+            </button>
+          </form>
+
+          <!-- Daftar Promo & Titip Jual Aktif (Edit Keterangan, Gambar 1:1 & Harga Coret) -->
+          <div class="pt-3 border-t border-stone-200 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold text-stone-800">Daftar Kartu Promo & Titip Jual Aktif</span>
+              <span id="adminPromoListCount" class="text-[11px] font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-700">3 Item</span>
+            </div>
+            <div id="adminPromosManageList" class="space-y-2 max-h-52 overflow-y-auto text-xs"></div>
+          </div>
+        </div>
+
+        <!-- 5B. KELOLA MENU PONDHOK DHAHAR SEDHAH AYU (EDIT GAMBAR, KETERANGAN & HARGA CORET) -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-lg text-stone-900">🍛 Kelola Menu "Sedhah Ayu" & Harga Coret</h3>
+            <span id="adminSedhahCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">6 Menu</span>
+          </div>
+          <p class="text-xs text-stone-600">Edit keterangan menu, unggah foto hidangan (auto-crop 1:1), atau aktifkan harga diskon / harga coret harian.</p>
+          <div id="adminSedhahManageList" class="space-y-2.5 max-h-80 overflow-y-auto text-xs"></div>
+        </div>
+
+        <!-- 6. MODERASI BUKU TAMU -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-lg text-stone-900">📖 Antrean Moderasi Buku Tamu</h3>
+            <span id="adminPendingCountLabel" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">1 Menunggu</span>
+          </div>
+          <div id="adminGuestbookQueue" class="space-y-3 max-h-72 overflow-y-auto"></div>
+        </div>
+
+        <!-- 7. DAFTAR PENGHUNI AKTIF -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-lg text-stone-900">👥 Penghuni Kos Aktif & KTP</h3>
+            <span id="adminActiveTenantCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">3 Aktif</span>
+          </div>
+          <div id="adminTenantsList" class="space-y-2.5 max-h-72 overflow-y-auto"></div>
+        </div>
+
+        <!-- 8. ARSIP ALUMNI & CATATAN TUNGGAKAN -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-lg text-stone-900">🗂️ Arsip Alumni & Catatan Tunggakan</h3>
+            <span id="adminAlumniCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-stone-200 text-stone-700">0 Arsip</span>
+          </div>
+          <div id="adminAlumniList" class="space-y-2.5 max-h-72 overflow-y-auto"></div>
+        </div>
+
+        <!-- 9. MANAJEMEN NAMA TAB & KETERANGAN (ABOUT US, INFO KOS, SEDHAH AYU, PROMO, BUKU TAMU, RADAR & TAB KUSTOM) -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-lg text-stone-900">🗂️ Manajemen Tab Navigasi & Keterangan</h3>
+            <span id="adminTabsCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">7 Bagian</span>
+          </div>
+          <p class="text-xs text-stone-600">Tambah tab halaman baru, edit nama tab navigasi, judul header & keterangannya, atau hapus tab tambahan.</p>
+
+          <form id="adminAddTabForm" class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
+            <div class="font-bold text-stone-800">+ Tambah Tab Halaman Baru</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="newTabNavName" required placeholder="Nama Tab (Misal: Galeri / Tatib)" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+              <input type="text" id="newTabHeading" required placeholder="Judul Header Halaman" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+            <textarea id="newTabDescription" rows="2" required placeholder="Keterangan / isi teks yang ditampilkan di dalam tab ini..." class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"></textarea>
+            <button type="submit" class="w-full py-2 rounded-xl bg-indigo-800 hover:bg-indigo-900 text-white font-bold">
+              + Tambahkan Tab ke Navigasi Utama
+            </button>
+          </form>
+
+          <div id="adminTabsManageList" class="space-y-2 max-h-72 overflow-y-auto text-xs"></div>
+        </div>
+
+        <!-- 10. MANAJEMEN RADAR LOKASI SEKITAR KOS (TAMBAH, EDIT, HAPUS) -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-lg text-stone-900">📍 Manajemen Radar Lokasi Sekitar Kos</h3>
+            <span id="adminRadarCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">6 Lokasi</span>
+          </div>
+          <p class="text-xs text-stone-600">Kelola daftar fasilitas sekitar kos (warung, laundry, galon, kantor/ATM) yang tampil di Radar Lokasi penghuni.</p>
+
+          <form id="adminAddRadarForm" class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
+            <div class="font-bold text-stone-800">+ Tambah Titik Lokasi Baru</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input type="text" id="newRadarIcon" required placeholder="Ikon (Misal: 🏥)" maxlength="4" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+              <input type="text" id="newRadarName" required placeholder="Nama Lokasi / Usaha" class="sm:col-span-2 px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="newRadarDist" required placeholder="Jarak (Misal: 100 meter)" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+              <input type="text" id="newRadarTime" required placeholder="Waktu Tempuh (Misal: 1 menit jalan)" class="px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+            <textarea id="newRadarDesc" rows="2" required placeholder="Keterangan lokasi, jam buka, atau layanan pesan antar..." class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"></textarea>
+            <button type="submit" class="w-full py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold">
+              + Simpan Lokasi ke Radar Sekitar
+            </button>
+          </form>
+
+          <div id="adminRadarManageList" class="space-y-2 max-h-72 overflow-y-auto text-xs"></div>
+        </div>
+
+        <!-- 11. MANAJEMEN CHANNEL & TOPIC mIRC32 (#) -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-lg text-stone-900">💬 Manajemen Channel & Topic mIRC32 (#)</h3>
+              <p class="text-xs text-stone-600 mt-0.5">Tambah ruang obrolan (#channel) baru, ubah teks Topic di bagian atas mIRC32, atau hapus channel yang tidak diperlukan.</p>
+            </div>
+            <span id="adminMircChannelCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-900">4 Channel</span>
+          </div>
+
+          <form id="adminAddMircChannelForm" class="p-3.5 rounded-xl bg-stone-50 border border-stone-200 grid grid-cols-1 md:grid-cols-12 gap-2.5 text-xs items-end">
+            <div class="md:col-span-3">
+              <label class="block font-bold text-stone-700 mb-1">Nama Channel (#) *</label>
+              <input type="text" id="newMircChannelName" required placeholder="Contoh: #lapor-rusak" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white font-mono-code" />
+            </div>
+            <div class="md:col-span-6">
+              <label class="block font-bold text-stone-700 mb-1">Deskripsi Topic Channel *</label>
+              <input type="text" id="newMircChannelTopic" required placeholder="Contoh: Laporan kerusakan fasilitas kamar & Wi-Fi kos." class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+            <div class="md:col-span-3">
+              <button type="submit" class="w-full py-2 px-3 rounded-xl bg-blue-900 hover:bg-blue-950 text-white font-bold">
+                + Tambah Channel
+              </button>
+            </div>
+          </form>
+
+          <div id="adminMircChannelsManageList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs"></div>
+        </div>
+
+        <!-- 12. MANAJEMEN CHANNEL RADIO ONLINE KOS -->
+        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-lg text-stone-900">📻 Manajemen Channel Radio Online Kos</h3>
+              <p class="text-xs text-stone-600 mt-0.5">Tambah atau hapus URL streaming radio (Icecast / Shoutcast / Zeno.FM MP3/AAC) yang muncul di pemutar mini penghuni kos.</p>
+            </div>
+            <span id="adminRadioStationCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">4 / 5 Stasiun</span>
+          </div>
+
+          <form id="adminAddRadioForm" class="p-3.5 rounded-xl bg-stone-50 border border-stone-200 grid grid-cols-1 md:grid-cols-12 gap-2.5 text-xs items-end">
+            <div class="md:col-span-4">
+              <label class="block font-bold text-stone-700 mb-1">Nama Stasiun / Channel *</label>
+              <input type="text" id="newRadioName" required placeholder="Contoh: Radio Sedhah Ayu Jadoel" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white" />
+            </div>
+            <div class="md:col-span-4">
+              <label class="block font-bold text-stone-700 mb-1">URL Audio Stream (HTTPS MP3/AAC) *</label>
+              <input type="url" id="newRadioUrl" required placeholder="https://stream.zeno.fm/..." class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white font-mono-code" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="block font-bold text-stone-700 mb-1">Status Siaran</label>
+              <label class="flex items-center gap-2 px-3 py-2 rounded-xl border border-stone-300 bg-white font-bold text-stone-800">
+                <input type="checkbox" id="newRadioLive" class="accent-red-700" /> 🔴 LIVE
+              </label>
+            </div>
+            <div class="md:col-span-2">
+              <button type="submit" class="w-full py-2 px-3 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold">
+                + Tambah Radio
+              </button>
+            </div>
+          </form>
+          <p class="text-[11px] text-stone-500">Maksimal 5 stasiun. Centang 🔴 LIVE untuk menandai siaran yang sedang berlangsung. Untuk siaran live sendiri, buat stream di Zeno.FM/Radio.co/OBS lalu tempel URL MP3/AAC-nya di sini.</p>
+
+          <div id="adminRadioStationsList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL EDIT TOPIC CHANNEL mIRC32 -->
+  <div id="editMircChannelModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-blue-900">Pengaturan Ruang Obrolan mIRC32</span>
+          <h4 class="font-extrabold text-stone-900 text-base font-mono-code" id="editMircChannelModalTitle">Edit #umum</h4>
+        </div>
+        <button type="button" onclick="closeEditMircChannelModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+      <form id="editMircChannelForm" class="space-y-3.5 text-sm">
+        <input type="hidden" id="editMircChannelKey" />
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Deskripsi Topic Channel *</label>
+          <textarea id="editMircChannelTopicInput" rows="3" required class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:outline-none focus:border-blue-800"></textarea>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeEditMircChannelModal()" class="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs shadow">💾 Simpan Topic</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT TAB NAVIGASI & KETERANGAN -->
+  <div id="editTabConfigModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-800">Pengaturan Navigasi & Header</span>
+          <h4 class="font-extrabold text-stone-900 text-base" id="editTabModalTitle">Edit Tab</h4>
+        </div>
+        <button type="button" onclick="closeEditTabModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+      <form id="editTabConfigForm" class="space-y-3.5 text-sm">
+        <input type="hidden" id="editTabKey" />
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Nama Label Tab / Sub-Menu *</label>
+          <input type="text" id="editTabNavLabel" required class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-indigo-700" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Judul Utama Bagian (Heading) *</label>
+          <input type="text" id="editTabSectionTitle" required class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-indigo-700" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Keterangan / Deskripsi Halaman *</label>
+          <textarea id="editTabSectionDesc" rows="3" required class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:outline-none focus:border-indigo-700"></textarea>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeEditTabModal()" class="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-indigo-800 hover:bg-indigo-900 text-white font-bold text-xs shadow">💾 Simpan Pengaturan Tab</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT LOKASI RADAR SEKITAR -->
+  <div id="editRadarItemModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Direktori Lingkungan Kos</span>
+          <h4 class="font-extrabold text-stone-900 text-base">Edit Titik Lokasi Radar</h4>
+        </div>
+        <button type="button" onclick="closeEditRadarModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+      <form id="editRadarItemForm" class="space-y-3.5 text-sm">
+        <input type="hidden" id="editRadarId" />
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Ikon *</label>
+            <input type="text" id="editRadarIcon" required maxlength="4" class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-stone-700 mb-1">Nama Lokasi / Usaha *</label>
+            <input type="text" id="editRadarName" required class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Jarak dari Kos *</label>
+            <input type="text" id="editRadarDist" required class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Estimasi Waktu *</label>
+            <input type="text" id="editRadarTime" required class="w-full px-3 py-2 rounded-xl border border-stone-300" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Keterangan Lokasi *</label>
+          <textarea id="editRadarDesc" rows="2" required class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs"></textarea>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeEditRadarModal()" class="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow">💾 Simpan Lokasi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT MENU SEDHAH AYU / PROMO & TITIP JUAL -->
+  <div id="editCatalogItemModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-amber-800" id="editCatalogModalSubtitle">Pengaturan Etalase</span>
+          <h4 class="font-extrabold text-stone-900 text-base" id="editCatalogModalTitle">Edit Item</h4>
+        </div>
+        <button type="button" onclick="closeEditCatalogModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+
+      <form id="editCatalogItemForm" class="space-y-3.5 text-sm">
+        <input type="hidden" id="editCatalogType" />
+        <input type="hidden" id="editCatalogId" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Judul / Nama Menu *</label>
+            <input type="text" id="editCatalogName" required class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" id="editCatalogCatLabel">Kategori / Label</label>
+            <input type="text" id="editCatalogCategoryText" required class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Keterangan / Deskripsi *</label>
+          <textarea id="editCatalogDesc" rows="2" required class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:outline-none focus:border-amber-700"></textarea>
+        </div>
+
+        <!-- Upload / Ganti Gambar (Auto Crop 1:1) -->
+        <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <label class="block text-xs font-bold text-stone-800">🖼️ Ganti Gambar (Auto Crop 1:1 Persegi WebP)</label>
+          <input type="file" id="editCatalogImageInput" accept="image/*" class="w-full text-xs text-stone-600 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-950 font-semibold" />
+          <div class="flex items-center gap-3 pt-1">
+            <img id="editCatalogImagePreview" alt="Preview Gambar" class="w-20 h-20 object-cover rounded-xl border border-stone-300 bg-white" />
+            <div class="text-[11px] text-stone-500 leading-relaxed">
+              Gambar saat ini akan dipertahankan jika Anda tidak memilih file gambar baru.
+            </div>
+          </div>
+        </div>
+
+        <!-- Pengaturan Harga Normal & Harga Coret / Diskon -->
+        <div class="p-4 rounded-xl bg-amber-50/90 border border-amber-200 space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-stone-800 mb-1">Harga Normal (Rp) *</label>
+              <input type="number" id="editCatalogNormalPrice" required min="500" step="500" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white font-mono-code text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-800 mb-1">Satuan / Keterangan Harga</label>
+              <input type="text" id="editCatalogUnitLabel" placeholder="Contoh: / Porsi atau / 200gr" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs" />
+            </div>
+          </div>
+
+          <label class="flex items-center justify-between cursor-pointer select-none pt-2 border-t border-amber-200">
+            <div>
+              <span class="text-xs font-extrabold text-amber-950 block">🏷️ Aktifkan Harga Coret / Diskon Promo</span>
+              <span class="text-[11px] text-amber-800">Tampilkan harga normal dicoret dengan tarif promo aktif.</span>
+            </div>
+            <input type="checkbox" id="editCatalogDiscountActive" onchange="toggleCatalogDiscountFields()" class="w-4 h-4 accent-amber-800 rounded" />
+          </label>
+
+          <div id="editCatalogDiscountFields" class="hidden space-y-3 pt-2 border-t border-amber-200/80">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-amber-950 mb-1">Harga Promo / Coret (Rp) *</label>
+                <input type="number" id="editCatalogPromoPrice" min="500" step="500" class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white font-mono-code text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-amber-950 mb-1">Berlaku Hingga Tanggal</label>
+                <input type="date" id="editCatalogDiscountUntil" class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-amber-950 mb-1">Badge Label Promo</label>
+              <input type="text" id="editCatalogPromoLabel" placeholder="Contoh: Promo Jumat Berkah / Diskon Harian" class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeEditCatalogModal()" class="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs shadow">💾 Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT DETAIL KAMAR & HARGA DISKON / CORET -->
+  <div id="editRoomModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-amber-800">Pengaturan Unit & Tarif</span>
+          <h4 class="font-extrabold text-stone-900 text-base" id="editRoomModalTitle">Edit Kamar 02</h4>
+        </div>
+        <button type="button" onclick="closeEditRoomModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+
+      <form id="editRoomForm" class="space-y-3.5 text-sm">
+        <input type="hidden" id="editRoomId" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Tipe / Ukuran Lantai *</label>
+            <input type="text" id="editRoomFloor" required placeholder="Lantai 1 • 3x3.5m"
+              class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Harga Sewa Normal (Rp/bln) *</label>
+            <input type="number" id="editRoomNormalPrice" required min="100000" step="5000" placeholder="750000"
+              class="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono-code focus:outline-none focus:border-amber-700" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Keterangan & Detail Kamar *</label>
+          <textarea id="editRoomDescription" rows="2" required placeholder="Contoh: Kamar luas menghadap taman, sirkulasi sejuk, dekat dapur bersama."
+            class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-amber-700 text-xs"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Daftar Fasilitas (Pisahkan dengan koma)</label>
+          <input type="text" id="editRoomFacilities" placeholder="Kasur Springbed, Lemari Kayu, Wi-Fi MikroTik (2 Device)"
+            class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:outline-none focus:border-amber-700" />
+        </div>
+
+        <!-- Pengaturan Harga Diskon / Harga Coret Berjangka Waktu -->
+        <div class="p-4 rounded-xl bg-amber-50/90 border border-amber-200 space-y-3">
+          <label class="flex items-center justify-between cursor-pointer select-none">
+            <div>
+              <span class="text-xs font-extrabold text-amber-950 block">🏷️ Aktifkan Harga Diskon / Harga Coret</span>
+              <span class="text-[11px] text-amber-800">Tampilkan harga normal dicoret dengan tarif promo berjangka waktu.</span>
+            </div>
+            <input type="checkbox" id="editRoomDiscountActive" onchange="toggleRoomDiscountFields()" class="w-4 h-4 accent-amber-800 rounded" />
+          </label>
+
+          <div id="editRoomDiscountFields" class="hidden space-y-3 pt-2 border-t border-amber-200/80">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-amber-950 mb-1">Harga Promo / Diskon (Rp/bln) *</label>
+                <input type="number" id="editRoomPromoPrice" min="50000" step="5000" placeholder="650000"
+                  class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white font-mono-code text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-amber-950 mb-1">Berlaku Hingga Tanggal *</label>
+                <input type="date" id="editRoomDiscountUntil"
+                  class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-amber-950 mb-1">Label / Keterangan Promo</label>
+              <input type="text" id="editRoomPromoLabel" placeholder="Contoh: Promo Awal Bulan / Diskon Pasca Renovasi"
+                class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeEditRoomModal()" class="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs shadow">💾 Simpan Perubahan Kamar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CHECK-OUT PENGHUNI & CATATAN TUNGGAKAN -->
+  <div id="checkoutModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <h4 class="font-extrabold text-stone-900 text-base">Proses Check-Out Penghuni</h4>
+        <button type="button" onclick="closeCheckoutModal()" class="text-stone-500 hover:text-stone-900 font-bold">✕</button>
+      </div>
+      <form id="checkoutForm" class="space-y-3.5 text-sm">
+        <input type="hidden" id="coTenantUsername" />
+        <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs">
+          Penghuni: <strong id="coTenantLabel" class="text-stone-900">Dimas Pratama (Kamar 01)</strong>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Status Pembayaran Akhir *</label>
+          <select id="coPaymentStatus" onchange="toggleArrearsFields()" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white">
+            <option value="Lunas">✅ Lunas (Tidak Ada Tunggakan)</option>
+            <option value="Tunggakan">⚠️ Ada Kekurangan / Tunggakan Pembayaran</option>
+          </select>
+        </div>
+
+        <div id="coArrearsFields" class="hidden space-y-3 p-3.5 rounded-xl bg-red-50 border border-red-200">
+          <div>
+            <label class="block text-xs font-bold text-red-900 mb-1">Nominal Kekurangan (Rp) *</label>
+            <input type="number" id="coArrearsAmount" placeholder="Contoh: 250000" class="w-full px-3 py-2 rounded-xl border border-red-300 bg-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-red-900 mb-1">Keterangan / Rincian Kekurangan Admin *</label>
+            <textarea id="coAdminNotes" rows="2" placeholder="Contoh: Kurang sisa sewa bulan terakhir & ganti kunci kamar, janji dilunasi tanggal 5." class="w-full px-3 py-2 rounded-xl border border-red-300 bg-white text-xs"></textarea>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Status Kamar Pasca Check-Out *</label>
+          <select id="coPostRoomStatus" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white">
+            <option value="available">● Tersedia (Langsung Siap Huni)</option>
+            <option value="renovation">🛠️ Renovasi / Pembersihan Dulu</option>
+          </select>
+        </div>
+
+        <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-950">
+          ⚠️ Setelah konfirmasi: Akun Portal & mIRC32 langsung dicabut, dan pengingat hapus user <strong>MikroTik RB750Gr3</strong> akan muncul.
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeCheckoutModal()" class="flex-1 py-2.5 rounded-xl bg-stone-100 text-stone-700 font-bold text-xs">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-red-800 hover:bg-red-900 text-white font-bold text-xs">Konfirmasi Check-Out</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL LIHAT KTP & BIODATA -->
+  <div id="ktpViewerModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-2.5">
+        <h4 class="font-bold text-stone-900" id="ktpModalTitle">Verifikasi Dokumen KTP</h4>
+        <button onclick="document.getElementById('ktpViewerModal').classList.add('hidden')" class="text-stone-500 hover:text-stone-900 font-bold">✕</button>
+      </div>
+      <div id="ktpModalBody" class="space-y-2.5 text-xs text-stone-700"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-stone-900 text-stone-400 text-xs py-6 px-4 mt-12 border-t border-stone-800">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div id="siteFooterLeft"><span class="text-stone-200 font-bold">Ekosistem Hub • Kos Inu Kerta & Pondhok Dhahar "Sedhah Ayu"</span> — Secang, Kab. Magelang.</div>
+      <div id="siteFooterRight" class="text-stone-500">MikroTik RB750Gr3 Ready • WebP Compressed • PWA + mIRC32 Live Sync</div>
+    </div>
+  </footer>
+
+  <script>
+    window.PORTAL_DATA = <?= json_encode($portalData, $jsonFlags) ?>;
+  </script>
+  <script>
+    // ==================== 1. DATA & INITIAL STATE ====================
+    let siteBrandConfig = window.PORTAL_DATA.siteBrandConfig;
+    let pendingBrandLogoWebP = null;
+
+    let tickerConfig = window.PORTAL_DATA.tickerConfig;
+
+    let tabConfigs = window.PORTAL_DATA.tabConfigs;
+
+    let rooms = window.PORTAL_DATA.rooms;
+
+    let sedhahMenuItems = [];
+    let promos = [];
+    let nearbyLocations = window.PORTAL_DATA.nearbyLocations;
+
+    let inviteCodes = window.PORTAL_DATA.inviteCodes;
+
+    let registeredTenants = window.PORTAL_DATA.registeredTenants;
+
+    let alumniArchive = [];
+
+    let guestbookEntries = window.PORTAL_DATA.guestbookEntries;
+
+    let currentSession = null;
+    let currentMainTab = 'about';
+    let currentPromoFilter = 'all';
+    let validatedInviteObj = null;
+    let pendingGbPhotoWebP = null;
+    let pendingKtpPhotoWebP = null;
+    let pendingPromoSquareWebP = null;
+    let pendingCatalogEditImageWebP = null;
+    let pwaSubscribed = false;
+
+    // mIRC32 State
+    let mircChannels = window.PORTAL_DATA.mircChannels;
+    let activeMircTab = '#umum';
+    let unreadMircTabs = new Set();
+    let mircSoundEnabled = true;
+
+    // Radio Online Kos State
+    let radioStations = window.PORTAL_DATA.radioStations;
+    let isRadioPlaying = false;
+
+    function createSquarePromoSvgDataUrl(title, subtitle, bg1, bg2, emoji) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${bg1}"/><stop offset="100%" stop-color="${bg2}"/></linearGradient></defs>
+        <rect width="600" height="600" fill="url(#g)"/>
+        <circle cx="300" cy="210" r="105" fill="rgba(255,255,255,0.14)"/>
+        <text x="300" y="242" font-size="95" text-anchor="middle">${emoji}</text>
+        <text x="300" y="385" font-family="sans-serif" font-weight="800" font-size="30" fill="#ffffff" text-anchor="middle">${title}</text>
+        <text x="300" y="430" font-family="sans-serif" font-weight="600" font-size="20" fill="#fde68a" text-anchor="middle">${subtitle}</text>
+      </svg>`;
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+
+    function initDefaultSedhahMenu() {
+      sedhahMenuItems = [
+        { id: 'M1', name: 'Nasi Sayur Lodeh & Ayam Lengkuas', category: 'Paket Favorit', desc: 'Nasi pulen hangat, sayur lodeh ndeso santan gurih, ayam goreng bumbu lengkuas, sambal bawang & lalapan.', normalPrice: 16000, unitLabel: '/ Porsi', discountActive: true, promoPrice: 13500, discountUntil: '2026-12-31', promoLabel: 'Hemat Anak Kos', image: createSquarePromoSvgDataUrl('Nasi Ayam Lengkuas', 'Pondhok Dhahar Sedhah Ayu', '#78350f', '#451a03', '🍗') },
+        { id: 'M2', name: 'Nasi Rames Jadoel Komplit', category: 'Menu Harian', desc: 'Oseng tempe lombok ijo, telur dadar krispi, perkedel kentang, dan kering tempe kacang.', normalPrice: 12000, unitLabel: '/ Porsi', discountActive: false, promoPrice: 10000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Nasi Rames Jadoel', 'Masakan Rumahan Hangat', '#92400e', '#78350f', '🍛') },
+        { id: 'M3', name: 'Tempe Mendoan Hangat (Isi 4)', category: 'Gorengan & Camilan', desc: 'Tempe kedelai pilihan digoreng setengah matang dengan irisan daun bawang & sambal kecap rawit.', normalPrice: 8000, unitLabel: '/ Porsi', discountActive: false, promoPrice: 6000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Tempe Mendoan', 'Goreng Dadakan Hangat', '#b45309', '#78350f', '🥟') },
+        { id: 'M4', name: 'Wedang Jahe Gula Aren & Teh Poci', category: 'Minuman Tradisional', desc: 'Jahe emprit bakar geprek dengan gula aren asli Magelang atau teh poci seduh gula batu.', normalPrice: 6000, unitLabel: '/ Gelas', discountActive: true, promoPrice: 4000, discountUntil: '2026-12-31', promoLabel: 'Promo Sore', image: createSquarePromoSvgDataUrl('Wedang Jahe & Poci', 'Hangat & Menyegarkan', '#065f46', '#064e3b', '🍵') },
+        { id: 'M5', name: 'Paket Tumpeng Mini Syukuran', category: 'Catering & Acara', desc: 'Nasi kuning gurih, ayam ingkung suwir, urap sayur, telur balado, dan kering kentang.', normalPrice: 28000, unitLabel: '/ Box', discountActive: false, promoPrice: 25000, discountUntil: '', promoLabel: '', image: createSquarePromoSvgDataUrl('Tumpeng Mini', 'Pesanan Acara & Rapat', '#991b1b', '#7f1d1d', ' Cone') },
+        { id: 'M6', name: 'Paket Catering Bulanan Anak Kos', category: 'Langganan Kos', desc: 'Paket makan 2x sehari (siang & malam) diantar langsung ke teras kamar kos setiap hari.', normalPrice: 550000, unitLabel: '/ Bulan', discountActive: true, promoPrice: 490000, discountUntil: '2026-12-31', promoLabel: 'Khusus Penghuni Kos', image: createSquarePromoSvgDataUrl('Catering Anak Kos', 'Antar Langsung ke Kamar', '#1e3a8a', '#172554', '🥡') }
+      ];
+    }
+
+    function initDefaultPromos() {
+      promos = [
+        { id: 'promo-1', title: 'Promo Pindah Kos Awal Bulan', category: 'kos', badge: 'Diskon Rp 100rb', desc: 'Potongan sewa bulan pertama untuk kamar baru (Kamar 02 & Kamar 05) termasuk akses Wi-Fi MikroTik 2 perangkat.', normalPrice: 750000, unitLabel: '/ Bulan', discountActive: true, promoPrice: 650000, discountUntil: '2026-12-31', promoLabel: 'Hemat Rp 100.000', image: createSquarePromoSvgDataUrl('Promo Kamar Kos', 'Diskon Sewa Bulan Pertama', '#065f46', '#022c22', '🏠') },
+        { id: 'promo-2', title: 'Jumat Berkah Sedhah Ayu', category: 'resto', badge: 'Gratis Es Teh', desc: 'Setiap pembelian paket Nasi Ayam Lengkuas atau Nasi Rames Komplit hari Jumat gratis Es Teh Manis / Teh Hangat.', normalPrice: 16000, unitLabel: '/ Paket', discountActive: true, promoPrice: 13500, discountUntil: '2026-12-31', promoLabel: 'Jumat Berkah', image: createSquarePromoSvgDataUrl('Jumat Berkah', 'Pondhok Dhahar Sedhah Ayu', '#92400e', '#451a03', '🍛') },
+        { id: 'promo-3', title: 'Titip Jual: Keripik Tempe Renyah Secang', category: 'mitra', badge: 'Rp 12.000 / Bungkus', desc: 'Produk UMKM warga sekitar Secang. Gurih, renyah tanpa pengawet, cocok untuk stok camilan belajar di kos.', normalPrice: 15000, unitLabel: '/ 200gr', discountActive: true, promoPrice: 12000, discountUntil: '2026-12-31', promoLabel: 'Titip Jual UMKM', image: createSquarePromoSvgDataUrl('Keripik Tempe Secang', 'Titip Jual UMKM Lokal', '#3730a3', '#1e1b4b', '🥨') }
+      ];
+    }
+
+    function initDefaultMircLogs() {
+      const t = getNowTimeStr();
+      mircChannels['#umum'].messages = [
+        { type: 'system', time: t, text: '*** Selamat datang di Jaringan Internal Kos Inu Kerta (Secang, Magelang).' },
+        { type: 'chat', time: t, nick: '@AdminKos', role: 'admin', text: 'Halo semua penghuni kos! Kalau ada kendala Wi-Fi MikroTik atau lampu mati, kabari di sini ya.' },
+        { type: 'chat', time: t, nick: '+Kamar01_Dimas', role: 'tenant', text: 'Siap Mas Inu, Wi-Fi Kamar 01 lancar jaya!' },
+        { type: 'chat', time: t, nick: '+Kamar03_Rina', role: 'tenant', text: 'Nanti siang ada yang mau titip makan di Sedhah Ayu bareng?' }
+      ];
+      mircChannels['#pengumuman'].messages = [
+        { type: 'system', time: t, text: '*** Channel Pengumuman Resmi Pengelola Kos & Pondhok Dhahar Sedhah Ayu.' },
+        { type: 'chat', time: t, nick: '@AdminKos', role: 'admin', text: 'Info: Menu spesial hari ini di Sedhah Ayu ada Nasi Sayur Lodeh & Ayam Lengkuas hangat!' }
+      ];
+      mircChannels['#titip-beli'].messages = [
+        { type: 'system', time: t, text: '*** Gunakan channel ini untuk titip beli makan, galon air, atau laundry.' }
+      ];
+      mircChannels['#mabar'].messages = [
+        { type: 'system', time: t, text: '*** Ruang kumpul mabar & olahraga sore penghuni kos.' }
+      ];
+    }
+
+    // ==================== 2. UTILITIES ====================
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatRupiah(num) {
+      return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    function getNowTimeStr() {
+      return new Date().toTimeString().slice(0, 8);
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const colors = {
+        info: 'bg-stone-900 text-white border-stone-700',
+        success: 'bg-emerald-900 text-emerald-50 border-emerald-700',
+        warning: 'bg-amber-900 text-amber-50 border-amber-700',
+        error: 'bg-red-900 text-red-50 border-red-700'
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-lg text-xs font-semibold transition-all duration-300 ${colors[type] || colors.info}`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+      }, 3600);
+    }
+
+    function playMircBeep() {
+      if (!mircSoundEnabled) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.14);
+      } catch (e) {}
+    }
+
+    // ==================== 3. NAVIGATION, BRANDING & RUNNING TEXT ====================
+    function applySiteBrandConfig() {
+      document.title = siteBrandConfig.title;
+      const titleEl = document.getElementById('siteTitleHeader');
+      const subEl = document.getElementById('siteSubtitleHeader');
+      const logoBox = document.getElementById('siteLogoBox');
+      const footerLeftEl = document.getElementById('siteFooterLeft');
+      const footerRightEl = document.getElementById('siteFooterRight');
+
+      if (titleEl) titleEl.textContent = siteBrandConfig.title;
+      if (subEl) subEl.textContent = siteBrandConfig.subtitle;
+      if (footerLeftEl) footerLeftEl.innerHTML = `<span class="text-stone-200 font-bold">${escapeHtml(siteBrandConfig.footerLeft)}</span>`;
+      if (footerRightEl) footerRightEl.textContent = siteBrandConfig.footerRight;
+
+      if (logoBox) {
+        if (siteBrandConfig.logoImage) {
+          logoBox.innerHTML = `<img src="${siteBrandConfig.logoImage}" alt="Logo" class="w-full h-full object-cover" />`;
+        } else {
+          logoBox.textContent = siteBrandConfig.logoText || 'IK';
+        }
+      }
+    }
+
+    function applyRunningTextConfig() {
+      const container = document.getElementById('runningTextContainer');
+      const marquee = document.getElementById('runningTextMarquee');
+      if (!container || !marquee) return;
+
+      if (!tickerConfig.active) {
+        container.classList.add('hidden');
+        return;
+      }
+      container.classList.remove('hidden');
+      marquee.textContent = tickerConfig.text;
+      marquee.style.animationDuration = tickerConfig.speed || '22s';
+
+      const colorMap = {
+        amber: 'bg-amber-900 text-amber-50 border-amber-700',
+        emerald: 'bg-emerald-900 text-emerald-50 border-emerald-700',
+        red: 'bg-red-900 text-red-50 border-red-700',
+        stone: 'bg-stone-900 text-stone-100 border-stone-700'
+      };
+      container.className = `rounded-xl border px-4 py-2.5 shadow-sm flex items-center gap-3 overflow-hidden ${colorMap[tickerConfig.color] || colorMap.amber}`;
+    }
+
+    function applyTabTextsToDOM() {
+      tabConfigs.forEach(cfg => {
+        if (cfg.key === 'about') {
+          const h = document.getElementById('aboutHeroTitle');
+          const d = document.getElementById('aboutHeroDesc');
+          if (h) h.textContent = cfg.sectionTitle;
+          if (d) d.textContent = cfg.sectionDesc;
+        } else if (cfg.key === 'kos') {
+          const h = document.getElementById('kosHeaderTitle');
+          if (h) h.textContent = cfg.sectionTitle;
+        } else if (cfg.key === 'sedhah') {
+          const h = document.getElementById('sedhahHeaderTitle');
+          const d = document.getElementById('sedhahHeaderDesc');
+          if (h) h.textContent = cfg.sectionTitle;
+          if (d) d.textContent = cfg.sectionDesc;
+        } else if (cfg.key === 'promo') {
+          const h = document.getElementById('promoHeaderTitle');
+          const d = document.getElementById('promoHeaderDesc');
+          if (h) h.textContent = cfg.sectionTitle;
+          if (d) d.textContent = cfg.sectionDesc;
+        } else if (cfg.key === 'tamu') {
+          const h = document.getElementById('tamuHeaderTitle');
+          const d = document.getElementById('tamuHeaderDesc');
+          if (h) h.textContent = cfg.sectionTitle;
+          if (d) d.textContent = cfg.sectionDesc;
+        } else if (cfg.key === 'radar') {
+          const h = document.getElementById('radarHeaderTitle');
+          const d = document.getElementById('radarHeaderDesc');
+          if (h) h.textContent = cfg.sectionTitle;
+          if (d) d.textContent = cfg.sectionDesc;
+        }
+      });
+
+      const customSlot = document.getElementById('customTabPanelsSlot');
+      if (customSlot) {
+        const customTabs = tabConfigs.filter(t => !t.isSystem);
+        customSlot.innerHTML = customTabs.map(ct => `
+          <section id="tab-${escapeHtml(ct.key)}" class="main-tab-panel ${currentMainTab === ct.key ? '' : 'hidden'} space-y-5">
+            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-stone-200 shadow-sm space-y-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-800">Halaman Informasi</span>
+              <h2 class="text-2xl sm:text-3xl font-extrabold text-stone-900">${escapeHtml(ct.sectionTitle)}</h2>
+              <p class="text-sm text-stone-700 leading-relaxed whitespace-pre-line">${escapeHtml(ct.sectionDesc)}</p>
+            </div>
+          </section>
+        `).join('');
+      }
+    }
+
+    function renderNavigationTabs() {
+      const nav = document.getElementById('mainNavBar');
+      if (!nav) return;
+
+      const publicTabs = tabConfigs.filter(t => !t.isSubSection);
+      let html = publicTabs.map(t => {
+        const active = currentMainTab === t.key;
+        return `<button onclick="switchMainTab('${escapeHtml(t.key)}')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">${escapeHtml(t.navLabel)}</button>`;
+      }).join('');
+
+      const portalActive = currentMainTab === 'portal';
+      html += `<button onclick="switchMainTab('portal')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${portalActive ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}">💬 Portal Kos</button>`;
+
+      if (currentSession && currentSession.role === 'admin') {
+        const adminActive = currentMainTab === 'admin';
+        html += `<button onclick="switchMainTab('admin')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${adminActive ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}">👑 Panel Admin</button>`;
+      }
+
+      nav.innerHTML = html;
+      renderAuthHeaderSlot();
+    }
+
+    function renderAuthHeaderSlot() {
+      const slot = document.getElementById('authHeaderSlot');
+      if (!slot) return;
+      if (!currentSession) {
+        slot.innerHTML = `
+          <button onclick="switchMainTab('portal')" class="px-3.5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition shadow-sm">
+            Sign In / Daftar Kos
+          </button>
+        `;
+      } else {
+        const badgeColor = currentSession.role === 'admin' ? 'bg-red-100 text-red-900 border-red-200' : 'bg-emerald-100 text-emerald-900 border-emerald-200';
+        slot.innerHTML = `
+          <span class="hidden sm:inline-block px-2.5 py-1 rounded-lg border text-xs font-mono-code font-bold ${badgeColor}">
+            ${escapeHtml(currentSession.nickname)}
+          </span>
+          <button onclick="logoutPortal()" class="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold">
+            Keluar
+          </button>
+        `;
+      }
+    }
+
+    function switchMainTab(tabKey) {
+      currentMainTab = tabKey;
+      document.querySelectorAll('.main-tab-panel').forEach(p => p.classList.add('hidden'));
+      const target = document.getElementById(`tab-${tabKey}`);
+      if (target) target.classList.remove('hidden');
+      renderNavigationTabs();
+      if (tabKey === 'admin') renderAdminPanel();
+      if (tabKey === 'portal' && currentSession) {
+        renderMircChannels();
+        renderMircMessages();
+        renderMircUserList();
+      }
+    }
+
+    function togglePwaSubscription() {
+      pwaSubscribed = !pwaSubscribed;
+      const btn1 = document.getElementById('btnSubscribePwa');
+      const btn2 = document.getElementById('btnPromoBell');
+      if (pwaSubscribed) {
+        if (btn1) { btn1.textContent = '✅ Notifikasi HP Aktif'; btn1.className = 'px-4 py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-bold shrink-0 transition'; }
+        if (btn2) { btn2.textContent = '✅ Info Promo Aktif'; btn2.className = 'px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold transition'; }
+        showToast('Notifikasi PWA Push aktif di perangkat ini!', 'success');
+      } else {
+        if (btn1) { btn1.textContent = '🔔 Aktifkan Notifikasi HP'; btn1.className = 'px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shrink-0 transition'; }
+        if (btn2) { btn2.textContent = '🔔 Aktifkan Info Promo Harian'; btn2.className = 'px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 text-xs font-bold transition'; }
+        showToast('Notifikasi HP dinonaktifkan.', 'info');
+      }
+    }
+
+    // ==================== 4. RENDER KAMAR, SEDHAH AYU, PROMO & BUKU TAMU ====================
+    function isDiscountCurrentlyValid(item) {
+      if (!item.discountActive) return false;
+      if (!item.discountUntil) return true;
+      const today = new Date().toISOString().slice(0, 10);
+      return item.discountUntil >= today;
+    }
+
+    function getCatalogItemPricing(item) {
+      const valid = isDiscountCurrentlyValid(item);
+      const activePrice = valid ? Number(item.promoPrice) : Number(item.normalPrice);
+      return {
+        hasDiscount: valid,
+        normalPrice: Number(item.normalPrice),
+        activePrice,
+        formattedNormal: formatRupiah(item.normalPrice),
+        formattedActive: formatRupiah(activePrice),
+        savings: valid ? Math.max(0, Number(item.normalPrice) - Number(item.promoPrice)) : 0,
+        promoLabel: item.promoLabel || 'Promo Spesial',
+        discountUntil: item.discountUntil || ''
+      };
+    }
+
+    function renderRooms() {
+      const grid = document.getElementById('roomsGrid');
+      if (!grid) return;
+
+      const availCount = rooms.filter(r => r.status === 'available').length;
+      const occCount = rooms.filter(r => r.status === 'occupied').length;
+      const renoCount = rooms.filter(r => r.status === 'renovation').length;
+
+      const heroEl = document.getElementById('heroAvailCount');
+      const badgeEl = document.getElementById('cardKosLiveBadge');
+      const totalTitleEl = document.getElementById('cardKosTotalTitle');
+      const totalHeaderEl = document.getElementById('kosTotalHeaderCount');
+      if (heroEl) heroEl.textContent = availCount;
+      if (badgeEl) badgeEl.textContent = `${availCount} dari ${rooms.length} Kamar Kosong`;
+      if (totalTitleEl) totalTitleEl.textContent = rooms.length;
+      if (totalHeaderEl) totalHeaderEl.textContent = rooms.length;
+
+      const sumAvail = document.getElementById('kosSummaryAvailable');
+      const sumOcc = document.getElementById('kosSummaryOccupied');
+      const sumReno = document.getElementById('kosSummaryRenovation');
+      if (sumAvail) sumAvail.textContent = `● ${availCount} Tersedia`;
+      if (sumOcc) sumOcc.textContent = `● ${occCount} Terisi`;
+      if (sumReno) sumReno.textContent = `● ${renoCount} Renovasi`;
+
+      grid.innerHTML = rooms.map(room => {
+        const pricing = getCatalogItemPricing(room);
+        let statusBadge = '';
+        if (room.status === 'available') {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">● Tersedia</span>';
+        } else if (room.status === 'occupied') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-stone-200 text-stone-700">● Terisi</span>`;
+        } else {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">🛠️ Renovasi</span>';
+        }
+
+        const priceHtml = pricing.hasDiscount ? `
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="text-xs line-through text-stone-400 font-mono-code">${pricing.formattedNormal}</span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded bg-red-100 text-red-800">${escapeHtml(pricing.promoLabel)}</span>
+            </div>
+            <div class="text-xl font-extrabold text-red-700 font-mono-code">${pricing.formattedActive}<span class="text-xs font-normal text-stone-500">/bln</span></div>
+            <div class="text-[11px] text-emerald-700 font-semibold">Hemat ${formatRupiah(pricing.savings)} ${pricing.discountUntil ? `(s/d ${pricing.discountUntil})` : ''}</div>
+          </div>
+        ` : `
+          <div class="text-xl font-extrabold text-stone-900 font-mono-code">${pricing.formattedNormal}<span class="text-xs font-normal text-stone-500">/bln</span></div>
+        `;
+
+        const waMsg = encodeURIComponent(`Halo Mas Inu, saya tertarik survei/pesan ${room.name} (${pricing.formattedActive}/bln). Apakah masih tersedia?`);
+        const actionBtn = room.status === 'available'
+          ? `<a href="https://wa.me/6281234567890?text=${waMsg}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm">📲 Pesan / Survei via WA</a>`
+          : `<button disabled class="w-full py-2.5 rounded-xl bg-stone-100 text-stone-400 font-bold text-xs cursor-not-allowed">${room.status === 'occupied' ? 'Unit Sedang Terisi' : 'Dalam Perbaikan / Renovasi'}</button>`;
+
+        return `
+          <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h3 class="text-lg font-extrabold text-stone-900">${escapeHtml(room.name)}</h3>
+                  <div class="text-xs text-stone-500">${escapeHtml(room.floor)}</div>
+                </div>
+                ${statusBadge}
+              </div>
+              ${priceHtml}
+              <p class="text-xs text-stone-600 leading-relaxed">${escapeHtml(room.desc)}</p>
+              <div class="flex flex-wrap gap-1.5">
+                ${(room.facilities || []).map(f => `<span class="px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 text-[11px] font-medium">${escapeHtml(f)}</span>`).join('')}
+              </div>
+            </div>
+            <div class="pt-2 border-t border-stone-100">${actionBtn}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderSedhahMenu() {
+      const grid = document.getElementById('sedhahMenuGrid');
+      if (!grid) return;
+
+      grid.innerHTML = sedhahMenuItems.map(item => {
+        const pricing = getCatalogItemPricing(item);
+        const waText = encodeURIComponent(`Halo Pondhok Dhahar Sedhah Ayu, saya mau pesan: ${item.name} (${pricing.formattedActive}${item.unitLabel || ''})`);
+        return `
+          <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col justify-between">
+            <div>
+              <div class="aspect-square w-full bg-stone-100 relative overflow-hidden">
+                <img src="${item.image}" alt="${escapeHtml(item.name)}" class="w-full h-full object-cover" />
+                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-stone-950/80 text-amber-300 text-[11px] font-bold">${escapeHtml(item.category)}</span>
+                ${pricing.hasDiscount ? `<span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-extrabold shadow">${escapeHtml(pricing.promoLabel)}</span>` : ''}
+              </div>
+              <div class="p-4 space-y-2">
+                <h3 class="font-extrabold text-base text-stone-900">${escapeHtml(item.name)}</h3>
+                <p class="text-xs text-stone-600 leading-relaxed">${escapeHtml(item.desc)}</p>
+                <div class="pt-1">
+                  ${pricing.hasDiscount ? `
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs line-through text-stone-400 font-mono-code">${pricing.formattedNormal}</span>
+                      <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Hemat ${formatRupiah(pricing.savings)}</span>
+                    </div>
+                    <div class="text-lg font-extrabold text-red-700 font-mono-code">${pricing.formattedActive} <span class="text-xs font-normal text-stone-500">${escapeHtml(item.unitLabel || '')}</span></div>
+                  ` : `
+                    <div class="text-lg font-extrabold text-stone-900 font-mono-code">${pricing.formattedNormal} <span class="text-xs font-normal text-stone-500">${escapeHtml(item.unitLabel || '')}</span></div>
+                  `}
+                </div>
+              </div>
+            </div>
+            <div class="p-4 pt-0">
+              <a href="https://wa.me/6281234567890?text=${waText}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs transition">
+                🍛 Pesan Menu Ini
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterPromos(cat) {
+      currentPromoFilter = cat;
+      document.querySelectorAll('.promo-filter-btn').forEach(btn => {
+        if (btn.dataset.cat === cat) {
+          btn.className = 'promo-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-900 text-white';
+        } else {
+          btn.className = 'promo-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-stone-200 text-stone-700 hover:bg-stone-100';
+        }
+      });
+      renderPromos();
+    }
+
+    function renderPromos() {
+      const grid = document.getElementById('promoGrid');
+      if (!grid) return;
+
+      const list = currentPromoFilter === 'all' ? promos : promos.filter(p => p.category === currentPromoFilter);
+      const catNames = { kos: 'Promo Kos', resto: 'Sedhah Ayu', mitra: 'Titip Jual UMKM' };
+
+      grid.innerHTML = list.map(p => {
+        const pricing = getCatalogItemPricing(p);
+        const waText = encodeURIComponent(`Halo, saya tertarik dengan promo: ${p.title} (${pricing.formattedActive})`);
+        return `
+          <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col justify-between">
+            <div>
+              <div class="aspect-square w-full bg-stone-100 relative overflow-hidden">
+                <img src="${p.image}" alt="${escapeHtml(p.title)}" class="w-full h-full object-cover" />
+                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-stone-900/85 text-white text-[11px] font-bold">${catNames[p.category] || 'Promo'}</span>
+                <span class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-amber-400 text-stone-950 text-xs font-extrabold shadow">${escapeHtml(p.badge)}</span>
+              </div>
+              <div class="p-4 space-y-2">
+                <h3 class="font-extrabold text-base text-stone-900">${escapeHtml(p.title)}</h3>
+                <p class="text-xs text-stone-600 leading-relaxed">${escapeHtml(p.desc)}</p>
+                ${p.normalPrice ? `
+                  <div class="pt-1">
+                    ${pricing.hasDiscount ? `
+                      <div class="text-xs line-through text-stone-400 font-mono-code">${pricing.formattedNormal}</div>
+                      <div class="text-base font-extrabold text-red-700 font-mono-code">${pricing.formattedActive} <span class="text-xs font-normal text-stone-500">${escapeHtml(p.unitLabel || '')}</span></div>
+                    ` : `
+                      <div class="text-base font-extrabold text-stone-900 font-mono-code">${pricing.formattedNormal} <span class="text-xs font-normal text-stone-500">${escapeHtml(p.unitLabel || '')}</span></div>
+                    `}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            <div class="p-4 pt-0 flex gap-2">
+              <a href="https://wa.me/6281234567890?text=${waText}" target="_blank" class="flex-1 text-center py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs transition">
+                📲 Ambil Promo
+              </a>
+              <button type="button" onclick="sharePromoLink('${escapeHtml(p.id)}', '${escapeHtml(p.title)}')" class="px-3 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-xs transition" title="Salin Link Promo">
+                🔗 Bagikan
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function sharePromoLink(id, title) {
+      const url = `${window.location.origin}${window.location.pathname}?tab=promo&id=${id}`;
+      const temp = document.createElement('input');
+      temp.value = url;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+      showToast(`Tautan promo "${title}" berhasil disalin!`, 'success');
+    }
+
+    function renderGuestbook() {
+      const list = document.getElementById('verifiedGuestbookList');
+      if (!list) return;
+      const verified = guestbookEntries.filter(g => g.approved);
+      list.innerHTML = verified.map(g => `
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm space-y-2.5">
+          ${g.photo ? `<img src="${g.photo}" alt="Foto Tamu" class="w-full h-36 object-cover rounded-xl border border-stone-200" />` : ''}
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">${escapeHtml(g.category)}</span>
+            <span class="text-[11px] text-stone-400">${escapeHtml(g.date)}</span>
+          </div>
+          <p class="text-xs text-stone-700 leading-relaxed">"${escapeHtml(g.message)}"</p>
+          <div class="text-xs font-extrabold text-stone-900 pt-1 border-t border-stone-100">— ${escapeHtml(g.name)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderNearbyLocations() {
+      const grid = document.getElementById('nearbyLocationsGrid');
+      if (!grid) return;
+      grid.innerHTML = nearbyLocations.map(loc => `
+        <div class="p-4 rounded-xl bg-white/10 border border-white/15 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">${escapeHtml(loc.icon)}</span>
+            <span class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">${escapeHtml(loc.dist)} • ${escapeHtml(loc.time)}</span>
+          </div>
+          <div class="font-bold text-sm text-white">${escapeHtml(loc.name)}</div>
+          <p class="text-xs text-stone-300 leading-relaxed">${escapeHtml(loc.desc)}</p>
+        </div>
+      `).join('');
+    }
+
+    // ==================== 5. AUTH, REGISTRASI PENGHUNI BARU & PORTAL ====================
+    function switchPortalAuthSubtab(sub) {
+      const signInBtn = document.getElementById('subtabBtnSignIn');
+      const regBtn = document.getElementById('subtabBtnRegister');
+      const signInPane = document.getElementById('portalSubtab-signin');
+      const regPane = document.getElementById('portalSubtab-register');
+
+      if (sub === 'signin') {
+        signInBtn.className = 'py-3.5 text-xs sm:text-sm font-bold border-b-2 border-amber-700 text-amber-900 bg-white';
+        regBtn.className = 'py-3.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-stone-600 hover:text-stone-900';
+        signInPane.classList.remove('hidden');
+        regPane.classList.add('hidden');
+      } else {
+        regBtn.className = 'py-3.5 text-xs sm:text-sm font-bold border-b-2 border-amber-700 text-amber-900 bg-white';
+        signInBtn.className = 'py-3.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-stone-600 hover:text-stone-900';
+        regPane.classList.remove('hidden');
+        signInPane.classList.add('hidden');
+      }
+    }
+
+    function applySamplePromoCode(code) {
+      document.getElementById('regInviteCode').value = code;
+      validateInviteCodeInput();
+    }
+
+    function validateInviteCodeInput() {
+      const codeVal = document.getElementById('regInviteCode').value.trim().toUpperCase();
+      const found = inviteCodes.find(c => c.code === codeVal && !c.used);
+      const box = document.getElementById('inviteCodeValidatedBox');
+      if (!found) {
+        validatedInviteObj = null;
+        if (box) box.classList.add('hidden');
+        showToast('Kode rekomendasi tidak valid atau sudah digunakan.', 'error');
+        return false;
+      }
+      validatedInviteObj = found;
+      document.getElementById('valRoomLabel').textContent = found.roomName;
+      document.getElementById('valNickLabel').textContent = '+' + found.nickname;
+      box.classList.remove('hidden');
+      showToast(`Kode ${found.code} valid untuk ${found.roomName}!`, 'success');
+      return true;
+    }
+
+    function quickFillLogin(user, pin) {
+      if (user === 'admin' && pin === '9999') {
+        currentSession = { role: 'admin', username: 'admin', fullName: 'Inu Kerta (Admin)', nickname: '@AdminKos', roomName: 'Kantor Pengelola' };
+        activateLoggedInWorkspace();
+        switchMainTab('admin');
+        showToast('Masuk sebagai Admin Kos (@AdminKos)', 'success');
+        return;
+      }
+      const tenant = registeredTenants.find(t => t.username.toLowerCase() === user.toLowerCase() && t.pin === pin);
+      if (tenant) {
+        currentSession = { role: 'tenant', ...tenant, nickname: '+' + tenant.nickname };
+        activateLoggedInWorkspace();
+        switchMainTab('portal');
+        showToast(`Selamat datang kembali, ${tenant.fullName}!`, 'success');
+      } else {
+        showToast('ID Kamar atau PIN salah / akun sudah dinonaktifkan.', 'error');
+      }
+    }
+
+    function activateLoggedInWorkspace() {
+      document.getElementById('portalAuthContainer').classList.add('hidden');
+      document.getElementById('portalWorkspaceContainer').classList.remove('hidden');
+      document.getElementById('internalUserBadge').textContent = `${currentSession.nickname} • Online`;
+      document.getElementById('mircNickHeader').textContent = currentSession.nickname;
+      document.getElementById('mircInputBadge').textContent = currentSession.nickname;
+
+      if (currentSession.role === 'tenant') {
+        document.getElementById('billingRoomName').textContent = currentSession.roomName;
+        document.getElementById('billingTenantName').textContent = currentSession.fullName;
+        document.getElementById('billingAmount').textContent = currentSession.billingAmount || 'Rp 650.000';
+        document.getElementById('billingDueDate').textContent = currentSession.billingDue || '10 Desember 2026';
+        document.getElementById('wifiUserDisplay').textContent = currentSession.username;
+        document.getElementById('wifiPassDisplay').textContent = currentSession.wifiPassword || 'kos#' + currentSession.pin;
+      } else {
+        document.getElementById('billingRoomName').textContent = 'Semua Unit (7 Kamar)';
+        document.getElementById('billingTenantName').textContent = 'Pengelola Kos';
+        document.getElementById('billingAmount').textContent = 'Rekap Aktif';
+        document.getElementById('billingDueDate').textContent = 'Setiap Tanggal 10';
+        document.getElementById('wifiUserDisplay').textContent = 'admin_hotspot';
+        document.getElementById('wifiPassDisplay').textContent = 'MikroTik#RB750';
+      }
+
+      renderNavigationTabs();
+      renderMircChannels();
+      renderMircMessages();
+      renderMircUserList();
+      renderNearbyLocations();
+    }
+
+    function copyWifiCredential(type) {
+      const val = type === 'user'
+        ? document.getElementById('wifiUserDisplay').textContent
+        : document.getElementById('wifiPassDisplay').textContent;
+      const temp = document.createElement('input');
+      temp.value = val;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+      showToast(`${type === 'user' ? 'Username' : 'Password'} Wi-Fi "${val}" disalin!`, 'success');
+    }
+
+    function regenerateTenantWifiPass(username) {
+      const t = registeredTenants.find(x => x.username === username);
+      if (!t) return;
+      const randNum = Math.floor(100 + Math.random() * 900);
+      t.wifiPassword = `${t.username}#${randNum}`;
+      if (currentSession && currentSession.username === t.username) {
+        currentSession.wifiPassword = t.wifiPassword;
+        document.getElementById('wifiPassDisplay').textContent = t.wifiPassword;
+      }
+      renderAdminPanel();
+      showToast(`Password Wi-Fi ${t.roomName} diperbarui menjadi: ${t.wifiPassword}`, 'success');
+    }
+
+    function logoutPortal() {
+      stopKosRadioPlayback();
+      currentSession = null;
+      document.getElementById('portalAuthContainer').classList.remove('hidden');
+      document.getElementById('portalWorkspaceContainer').classList.add('hidden');
+      switchMainTab('about');
+      showToast('Anda telah keluar dari sesi internal.', 'info');
+    }
+
+    // ==================== 5B. MINI RADIO ONLINE KOS ENGINE ====================
+    function renderRadioStationDropdown() {
+      const sel = document.getElementById('kosRadioStationSelect');
+      if (!sel) return;
+      const prevVal = sel.value;
+      sel.innerHTML = radioStations.map(st =>
+        `<option value="${escapeHtml(st.id)}">${st.isLive ? '🔴 LIVE — ' : ''}${escapeHtml(st.name)} (${escapeHtml(st.genre)})</option>`
+      ).join('');
+      if (prevVal && radioStations.some(s => s.id === prevVal)) {
+        sel.value = prevVal;
+      }
+    }
+
+    function updateRadioUiState(statusText, playing) {
+      isRadioPlaying = playing;
+      const btn = document.getElementById('btnRadioPlayToggle');
+      const badge = document.getElementById('kosRadioStatusBadge');
+      if (btn) {
+        btn.textContent = playing ? '⏸ Pause' : '▶ Play';
+        btn.classList.toggle('active', playing);
+      }
+      if (badge) {
+        badge.textContent = statusText;
+        badge.className = playing
+          ? 'hidden md:inline-block px-2 py-0.5 text-[11px] font-mono-code bg-emerald-800 text-white border border-black font-bold'
+          : 'hidden md:inline-block px-2 py-0.5 text-[11px] font-mono-code bg-stone-200 text-stone-700 border border-stone-400';
+      }
+    }
+
+    function toggleKosRadioPlayback() {
+      const audio = document.getElementById('kosRadioAudioEl');
+      const sel = document.getElementById('kosRadioStationSelect');
+      if (!audio || !sel) return;
+
+      if (!audio.paused) {
+        audio.pause();
+        updateRadioUiState('⏸ Dijeda', false);
+        return;
+      }
+
+      const st = radioStations.find(x => x.id === sel.value) || radioStations[0];
+      if (!st) return;
+
+      if (audio.src !== st.url) {
+        audio.src = st.url;
+      }
+      audio.volume = parseFloat(document.getElementById('kosRadioVolume')?.value || '0.7');
+      updateRadioUiState('⏳ Menghubungkan...', false);
+
+      audio.play().then(() => {
+        updateRadioUiState(st.isLive ? '● LIVE ON AIR' : '● ON AIR', true);
+        showToast(`${st.isLive ? '🔴 Siaran LIVE: ' : 'Memutar siaran: '}${st.name}`, 'info');
+      }).catch(() => {
+        updateRadioUiState('⚠️ Stream Sibuk', false);
+        showToast('Gagal memuat stream radio ini, coba pilih stasiun lain.', 'warning');
+      });
+    }
+
+    function changeRadioStation() {
+      const audio = document.getElementById('kosRadioAudioEl');
+      if (!audio) return;
+      const wasPlaying = !audio.paused;
+      audio.pause();
+      audio.removeAttribute('src');
+      if (wasPlaying) {
+        toggleKosRadioPlayback();
+      } else {
+        updateRadioUiState('● Siap Putar', false);
+      }
+    }
+
+    function stopKosRadioPlayback() {
+      const audio = document.getElementById('kosRadioAudioEl');
+      if (!audio) return;
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      updateRadioUiState('■ Berhenti', false);
+    }
+
+    function updateKosRadioVolume(val) {
+      const audio = document.getElementById('kosRadioAudioEl');
+      if (audio) audio.volume = parseFloat(val);
+    }
+
+    function switchInternalSubView(viewName) {
+      document.querySelectorAll('.internal-subview').forEach(v => v.classList.add('hidden'));
+      const target = document.getElementById(`internal-${viewName}`);
+      if (target) target.classList.remove('hidden');
+
+      document.querySelectorAll('.internal-sub-btn').forEach(btn => {
+        if (btn.dataset.subview === viewName) {
+          btn.className = 'internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-900 text-white flex items-center gap-1.5';
+        } else {
+          btn.className = 'internal-sub-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5';
+        }
+      });
+      if (viewName === 'radar') renderNearbyLocations();
+    }
+
+    function confirmBillingViaChat() {
+      if (!currentSession) return;
+      switchInternalSubView('mirc');
+      const pmTarget = '@AdminKos';
+      if (!mircChannels[pmTarget]) {
+        mircChannels[pmTarget] = { topic: 'Private Message dengan Pengelola Kos', messages: [] };
+      }
+      activeMircTab = pmTarget;
+      mircChannels[pmTarget].messages.push({
+        type: 'chat',
+        time: getNowTimeStr(),
+        nick: currentSession.nickname,
+        role: currentSession.role,
+        text: `Halo Admin, saya ingin konfirmasi pembayaran sewa ${currentSession.roomName} (${currentSession.fullName}).`
+      });
+      renderMircChannels();
+      renderMircMessages();
+      showToast('Pesan konfirmasi dikirim ke PM @AdminKos!', 'success');
+    }
+
+    // ==================== 6. mIRC32 LIVE CHAT ENGINE ====================
+    function renderMircChannels() {
+      const container = document.getElementById('mircChannelTabs');
+      if (!container) return;
+      container.innerHTML = Object.keys(mircChannels).map(ch => {
+        const isActive = activeMircTab === ch;
+        const isUnread = unreadMircTabs.has(ch);
+        return `<button type="button" onclick="selectMircChannel('${escapeHtml(ch)}')" class="win98-btn px-3 py-1 text-xs font-mono-code shrink-0 ${isActive ? 'active font-bold bg-white' : ''} ${isUnread ? 'mirc-tab-unread' : ''}">${escapeHtml(ch)}</button>`;
+      }).join('');
+
+      const activeObj = mircChannels[activeMircTab] || { topic: '' };
+      document.getElementById('mircActiveChanHeader').textContent = activeMircTab;
+      document.getElementById('mircTopicDisplay').textContent = activeObj.topic;
+    }
+
+    function selectMircChannel(ch) {
+      activeMircTab = ch;
+      unreadMircTabs.delete(ch);
+      renderMircChannels();
+      renderMircMessages();
+    }
+
+    function renderMircMessages() {
+      const box = document.getElementById('mircMessagesBox');
+      if (!box) return;
+      const chObj = mircChannels[activeMircTab];
+      if (!chObj) return;
+
+      box.innerHTML = chObj.messages.map(m => {
+        if (m.type === 'system') {
+          return `<div class="text-emerald-800"><span class="text-gray-400">[${escapeHtml(m.time)}]</span> ${escapeHtml(m.text)}</div>`;
+        }
+        if (m.type === 'action') {
+          return `<div class="text-purple-800 font-semibold"><span class="text-gray-400 font-normal">[${escapeHtml(m.time)}]</span> * ${escapeHtml(m.nick)} ${escapeHtml(m.text)}</div>`;
+        }
+        const nickColor = m.role === 'admin' ? 'text-red-700 font-bold' : 'text-blue-900 font-bold';
+        return `<div><span class="text-gray-400">[${escapeHtml(m.time)}]</span> &lt;<span class="${nickColor}">${escapeHtml(m.nick)}</span>&gt; <span class="text-black">${escapeHtml(m.text)}</span></div>`;
+      }).join('');
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function renderMircUserList() {
+      const list = document.getElementById('mircUserList');
+      const countEl = document.getElementById('mircUserCount');
+      if (!list) return;
+
+      const users = [
+        { nick: '@AdminKos', role: 'admin' },
+        ...registeredTenants.map(t => ({ nick: '+' + t.nickname, role: 'tenant' }))
+      ];
+      if (countEl) countEl.textContent = users.length;
+
+      list.innerHTML = users.map(u => {
+        const cls = u.role === 'admin' ? 'text-red-700 font-bold' : 'text-blue-950 font-medium';
+        return `<div onclick="openPrivateChatWith('${escapeHtml(u.nick)}')" class="px-1.5 py-1 rounded hover:bg-blue-800 hover:text-white cursor-pointer truncate ${cls}">${escapeHtml(u.nick)}</div>`;
+      }).join('');
+    }
+
+    function openPrivateChatWith(targetNick) {
+      if (!currentSession || targetNick === currentSession.nickname) return;
+      if (!mircChannels[targetNick]) {
+        mircChannels[targetNick] = { topic: `Private Message berdua dengan ${targetNick}`, messages: [{ type: 'system', time: getNowTimeStr(), text: `*** Memulai sesi Private Message dengan ${targetNick}` }] };
+      }
+      selectMircChannel(targetNick);
+    }
+
+    function toggleMircSound() {
+      mircSoundEnabled = !mircSoundEnabled;
+      document.getElementById('btnMircSound').textContent = mircSoundEnabled ? '🔊 Beep: ON' : '🔇 Beep: OFF';
+    }
+
+    function toggleMircMobileUsers() {
+      document.getElementById('mircUserDrawer').classList.toggle('hidden');
+    }
+
+    function insertMircCmd(cmd) {
+      const input = document.getElementById('mircChatInput');
+      input.value = cmd;
+      input.focus();
+    }
+
+    function executeMircCommand(raw) {
+      if (!currentSession) return;
+      const t = getNowTimeStr();
+      const chObj = mircChannels[activeMircTab];
+
+      if (raw === '/clear') {
+        chObj.messages = [];
+        renderMircMessages();
+        return;
+      }
+      if (raw === '/help') {
+        chObj.messages.push({ type: 'system', time: t, text: '*** Perintah IRC: /me [aksi], /nick [namaBaru], /msg [target] [pesan], /clear' });
+        renderMircMessages();
+        return;
+      }
+      if (raw.startsWith('/me ')) {
+        const actionText = raw.slice(4).trim();
+        if (actionText) {
+          chObj.messages.push({ type: 'action', time: t, nick: currentSession.nickname, text: actionText });
+          renderMircMessages();
+          playMircBeep();
+        }
+        return;
+      }
+      if (raw.startsWith('/nick ')) {
+        const newNick = raw.slice(6).trim().replace(/\s+/g, '_');
+        if (newNick) {
+          const oldNick = currentSession.nickname;
+          currentSession.nickname = (currentSession.role === 'admin' ? '@' : '+') + newNick.replace(/^[@+]/, '');
+          document.getElementById('mircNickHeader').textContent = currentSession.nickname;
+          document.getElementById('mircInputBadge').textContent = currentSession.nickname;
+          document.getElementById('internalUserBadge').textContent = `${currentSession.nickname} • Online`;
+          chObj.messages.push({ type: 'system', time: t, text: `*** ${oldNick} berganti nama menjadi ${currentSession.nickname}` });
+          renderMircMessages();
+          renderAuthHeaderSlot();
+        }
+        return;
+      }
+      if (raw.startsWith('/msg ')) {
+        const parts = raw.slice(5).trim().split(' ');
+        const target = parts.shift();
+        const msgText = parts.join(' ');
+        if (target && msgText) {
+          openPrivateChatWith(target);
+          mircChannels[target].messages.push({ type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: msgText });
+          renderMircMessages();
+          playMircBeep();
+        }
+        return;
+      }
+
+      chObj.messages.push({ type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: raw });
+      renderMircMessages();
+      playMircBeep();
+    }
+
+    // ==================== 7. ADMIN PANEL RENDER & MODALS ====================
+    function renderAdminPanel() {
+      // 0. Sync Site Brand, Logo & Footer Form Values
+      const brandTitleInput = document.getElementById('adminBrandTitle');
+      if (brandTitleInput) {
+        document.getElementById('adminBrandLogoText').value = siteBrandConfig.logoText || 'IK';
+        brandTitleInput.value = siteBrandConfig.title;
+        document.getElementById('adminBrandSubtitle').value = siteBrandConfig.subtitle;
+        document.getElementById('adminBrandFooterLeft').value = siteBrandConfig.footerLeft;
+        document.getElementById('adminBrandFooterRight').value = siteBrandConfig.footerRight;
+
+        const prevBox = document.getElementById('adminBrandLogoPreview');
+        const activeImg = pendingBrandLogoWebP || siteBrandConfig.logoImage;
+        if (prevBox) {
+          if (activeImg) {
+            prevBox.innerHTML = `<img src="${activeImg}" alt="Preview Logo" class="w-full h-full object-cover" />`;
+          } else {
+            prevBox.textContent = siteBrandConfig.logoText || 'IK';
+          }
+        }
+      }
+
+      // 1. Sync Running Text Form Values
+      const tickerInput = document.getElementById('adminTickerTextInput');
+      if (tickerInput) {
+        tickerInput.value = tickerConfig.text;
+        document.getElementById('adminTickerSpeed').value = tickerConfig.speed;
+        document.getElementById('adminTickerColor').value = tickerConfig.color;
+        document.getElementById('adminTickerActive').value = String(tickerConfig.active);
+      }
+
+      // 2. Rooms Manage List
+      const roomsListEl = document.getElementById('adminRoomsManageList');
+      if (roomsListEl) {
+        roomsListEl.innerHTML = rooms.map(r => {
+          const pricing = getCatalogItemPricing(r);
+          return `
+            <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="font-bold text-stone-900">${escapeHtml(r.name)} <span class="font-normal text-stone-500">(${escapeHtml(r.floor)})</span></div>
+                <div class="text-[11px] text-stone-600">Tarif: <strong>${pricing.formattedActive}</strong> ${pricing.hasDiscount ? `<span class="text-red-700 font-bold">(${escapeHtml(pricing.promoLabel)})</span>` : ''}</div>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <select onchange="changeRoomStatus('${r.id}', this.value)" class="px-2 py-1 rounded-lg border border-stone-300 bg-white text-[11px] font-semibold">
+                  <option value="available" ${r.status === 'available' ? 'selected' : ''}>● Tersedia</option>
+                  <option value="occupied" ${r.status === 'occupied' ? 'selected' : ''}>● Terisi</option>
+                  <option value="renovation" ${r.status === 'renovation' ? 'selected' : ''}>🛠️ Renovasi</option>
+                </select>
+                <button type="button" onclick="openEditRoomModal('${r.id}')" class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-[11px]">✏️ Edit Detail & Diskon</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 3. Vacant Rooms Dropdown & Active Invite Codes
+      const vacantSel = document.getElementById('adminSelectVacantRoom');
+      if (vacantSel) {
+        const vacant = rooms.filter(r => r.status === 'available');
+        vacantSel.innerHTML = vacant.length
+          ? vacant.map(r => `<option value="${r.id}">${escapeHtml(r.name)} (${formatRupiah(r.normalPrice)})</option>`).join('')
+          : '<option value="">Tidak ada kamar kosong</option>';
+      }
+      const codesList = document.getElementById('adminActiveCodesList');
+      if (codesList) {
+        codesList.innerHTML = inviteCodes.map(c => `
+          <div class="flex items-center justify-between px-3 py-1.5 rounded-lg border ${c.used ? 'bg-stone-100 border-stone-200 text-stone-400' : 'bg-amber-50 border-amber-200 text-amber-950'}">
+            <span class="font-mono-code font-bold">${escapeHtml(c.code)}</span>
+            <span>${escapeHtml(c.roomName)} • +${escapeHtml(c.nickname)} (${c.used ? 'Terpakai' : 'Aktif'})</span>
+          </div>
+        `).join('');
+      }
+
+      // 4. Move Room Dropdowns
+      const moveTenantSel = document.getElementById('adminMoveTenantSelect');
+      const moveTargetSel = document.getElementById('adminMoveTargetRoomSelect');
+      if (moveTenantSel && moveTargetSel) {
+        moveTenantSel.innerHTML = registeredTenants.map(t => `<option value="${t.username}">${escapeHtml(t.fullName)} (${escapeHtml(t.roomName)})</option>`).join('');
+        const vacant = rooms.filter(r => r.status === 'available');
+        moveTargetSel.innerHTML = vacant.length
+          ? vacant.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('')
+          : '<option value="">Tidak ada kamar kosong</option>';
+      }
+
+      // 5. Promos & Sedhah Ayu Manage Lists
+      const promoListEl = document.getElementById('adminPromosManageList');
+      const promoCountEl = document.getElementById('adminPromoListCount');
+      if (promoCountEl) promoCountEl.textContent = `${promos.length} Item`;
+      if (promoListEl) {
+        promoListEl.innerHTML = promos.map(p => `
+          <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <img src="${p.image}" class="w-10 h-10 rounded-lg object-cover shrink-0 border border-stone-300" />
+              <div class="truncate">
+                <div class="font-bold text-stone-900 truncate">${escapeHtml(p.title)}</div>
+                <div class="text-[11px] text-stone-500">${escapeHtml(p.badge)}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="openEditCatalogModal('promo', '${p.id}')" class="px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold">✏️ Edit</button>
+              <button type="button" onclick="deletePromoItem('${p.id}')" class="px-2 py-1 rounded bg-red-100 hover:bg-red-200 text-red-800 font-bold">✕</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      const sedhahListEl = document.getElementById('adminSedhahManageList');
+      const sedhahCountEl = document.getElementById('adminSedhahCount');
+      if (sedhahCountEl) sedhahCountEl.textContent = `${sedhahMenuItems.length} Menu`;
+      if (sedhahListEl) {
+        sedhahListEl.innerHTML = sedhahMenuItems.map(m => {
+          const pr = getCatalogItemPricing(m);
+          return `
+            <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <img src="${m.image}" class="w-10 h-10 rounded-lg object-cover shrink-0 border border-stone-300" />
+                <div class="truncate">
+                  <div class="font-bold text-stone-900 truncate">${escapeHtml(m.name)}</div>
+                  <div class="text-[11px] text-stone-600">${pr.formattedActive} ${pr.hasDiscount ? `<span class="line-through text-stone-400">${pr.formattedNormal}</span>` : ''}</div>
+                </div>
+              </div>
+              <button type="button" onclick="openEditCatalogModal('sedhah', '${m.id}')" class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold shrink-0">✏️ Edit Menu & Diskon</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 6. Guestbook Moderation Queue
+      const gbQueueEl = document.getElementById('adminGuestbookQueue');
+      const gbPendingCount = document.getElementById('adminPendingCountLabel');
+      const pendingGb = guestbookEntries.filter(g => !g.approved);
+      if (gbPendingCount) gbPendingCount.textContent = `${pendingGb.length} Menunggu`;
+      if (gbQueueEl) {
+        gbQueueEl.innerHTML = pendingGb.length ? pendingGb.map(g => `
+          <div class="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs space-y-2">
+            <div class="flex justify-between font-bold text-stone-900">
+              <span>${escapeHtml(g.name)}</span>
+              <span class="text-amber-800">${escapeHtml(g.category)}</span>
+            </div>
+            <p class="text-stone-700">"${escapeHtml(g.message)}"</p>
+            ${g.photo ? `<img src="${g.photo}" class="w-24 h-16 object-cover rounded border border-stone-300" />` : ''}
+            <div class="flex gap-2">
+              <button type="button" onclick="approveGuestbook('${g.id}')" class="px-3 py-1 rounded-lg bg-emerald-700 text-white font-bold">✓ Setujui Tampil</button>
+              <button type="button" onclick="deleteGuestbook('${g.id}')" class="px-3 py-1 rounded-lg bg-red-100 text-red-800 font-bold">✕ Hapus</button>
+            </div>
+          </div>
+        `).join('') : '<div class="text-xs text-stone-500 italic">Tidak ada antrean buku tamu baru.</div>';
+      }
+
+      // 7. Active Tenants List
+      const tenantsEl = document.getElementById('adminTenantsList');
+      const tenantCountEl = document.getElementById('adminActiveTenantCount');
+      if (tenantCountEl) tenantCountEl.textContent = `${registeredTenants.length} Aktif`;
+      if (tenantsEl) {
+        tenantsEl.innerHTML = registeredTenants.map(t => `
+          <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="font-extrabold text-stone-900">${escapeHtml(t.fullName)} <span class="text-emerald-800 font-mono-code">(${escapeHtml(t.roomName)})</span></div>
+              <div class="text-stone-600">HP: ${escapeHtml(t.phone)} • Darurat: ${escapeHtml(t.emergencyPhone)}</div>
+              <div class="text-blue-900 font-mono-code text-[11px] mt-0.5">📶 Wi-Fi User: <strong>${escapeHtml(t.username)}</strong> | Pass: <strong>${escapeHtml(t.wifiPassword || '-')}</strong> (Max 2)</div>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button type="button" onclick="regenerateTenantWifiPass('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold" title="Acak Ulang Password Wi-Fi Kamar">🔑 Reset Pass Wi-Fi</button>
+              <button type="button" onclick="viewTenantKtp('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold">🪪 KTP & Bio</button>
+              <button type="button" onclick="openCheckoutModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-900 font-bold">Check-Out</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 8. Alumni Archive & Arrears
+      const alumniEl = document.getElementById('adminAlumniList');
+      const alumniCountEl = document.getElementById('adminAlumniCount');
+      if (alumniCountEl) alumniCountEl.textContent = `${alumniArchive.length} Arsip`;
+      if (alumniEl) {
+        alumniEl.innerHTML = alumniArchive.length ? alumniArchive.map((a, idx) => `
+          <div class="p-3 rounded-xl border text-xs space-y-1.5 ${a.paymentStatus === 'Tunggakan' ? 'bg-red-50 border-red-200' : 'bg-stone-50 border-stone-200'}">
+            <div class="flex items-center justify-between">
+              <span class="font-extrabold text-stone-900">${escapeHtml(a.fullName)} (Eks ${escapeHtml(a.roomName)})</span>
+              <span class="px-2 py-0.5 rounded font-bold ${a.paymentStatus === 'Tunggakan' ? 'bg-red-700 text-white' : 'bg-emerald-100 text-emerald-800'}">
+                ${a.paymentStatus === 'Tunggakan' ? `Tunggakan ${formatRupiah(a.arrearsAmount)}` : 'Lunas'}
+              </span>
+            </div>
+            <div class="text-stone-600">Keluar: ${escapeHtml(a.checkoutDate)} • HP: ${escapeHtml(a.phone)}</div>
+            ${a.adminNotes ? `<div class="text-red-900 font-semibold">Catatan: ${escapeHtml(a.adminNotes)}</div>` : ''}
+            ${a.paymentStatus === 'Tunggakan' ? `<button type="button" onclick="markAlumniSettled(${idx})" class="px-2.5 py-1 rounded bg-emerald-700 text-white font-bold">✓ Tandai Lunas</button>` : ''}
+          </div>
+        `).join('') : '<div class="text-xs text-stone-500 italic">Belum ada data penghuni check-out.</div>';
+      }
+
+      // 9. Tabs Navigation Management
+      const tabsManageEl = document.getElementById('adminTabsManageList');
+      const tabsCountEl = document.getElementById('adminTabsCount');
+      if (tabsCountEl) tabsCountEl.textContent = `${tabConfigs.length} Bagian`;
+      if (tabsManageEl) {
+        tabsManageEl.innerHTML = tabConfigs.map(t => `
+          <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between gap-2">
+            <div class="truncate">
+              <span class="font-bold text-stone-900">${escapeHtml(t.navLabel)}</span>
+              <span class="text-stone-500 ml-1">— ${escapeHtml(t.sectionTitle)}</span>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="openEditTabModal('${t.key}')" class="px-2.5 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold">✏️ Edit</button>
+              ${!t.isSystem ? `<button type="button" onclick="deleteCustomTab('${t.key}')" class="px-2 py-1 rounded-lg bg-red-100 text-red-800 font-bold">✕</button>` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 10. Radar Locations Management
+      const radarManageEl = document.getElementById('adminRadarManageList');
+      const radarCountEl = document.getElementById('adminRadarCount');
+      if (radarCountEl) radarCountEl.textContent = `${nearbyLocations.length} Lokasi`;
+      if (radarManageEl) {
+        radarManageEl.innerHTML = nearbyLocations.map(loc => `
+          <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between gap-2">
+            <div class="truncate">
+              <span class="font-bold text-stone-900">${escapeHtml(loc.icon)} ${escapeHtml(loc.name)}</span>
+              <span class="text-stone-500 ml-1">(${escapeHtml(loc.dist)})</span>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="openEditRadarModal('${loc.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✏️ Edit</button>
+              <button type="button" onclick="deleteRadarLocation('${loc.id}')" class="px-2 py-1 rounded-lg bg-red-100 text-red-800 font-bold">✕</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 11. mIRC32 Channels & Topic Management
+      const mircManageEl = document.getElementById('adminMircChannelsManageList');
+      const mircCountEl = document.getElementById('adminMircChannelCount');
+      const chKeys = Object.keys(mircChannels).filter(k => k.startsWith('#'));
+      if (mircCountEl) mircCountEl.textContent = `${chKeys.length} Channel`;
+      if (mircManageEl) {
+        mircManageEl.innerHTML = chKeys.map(ch => `
+          <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-mono-code font-bold text-blue-950">${escapeHtml(ch)}</div>
+              <div class="text-stone-600 text-[11px] truncate">${escapeHtml(mircChannels[ch].topic)}</div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="openEditMircChannelModal('${escapeHtml(ch)}')" class="px-2.5 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold">✏️ Topic</button>
+              ${ch !== '#umum' ? `<button type="button" onclick="deleteMircChannel('${escapeHtml(ch)}')" class="px-2 py-1 rounded-lg bg-red-100 text-red-800 font-bold">✕</button>` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 12. Radio Online Kos Management
+      const radioManageEl = document.getElementById('adminRadioStationsList');
+      const radioCountEl = document.getElementById('adminRadioStationCount');
+      if (radioCountEl) radioCountEl.textContent = `${radioStations.length} / 5 Stasiun`;
+      if (radioManageEl) {
+        radioManageEl.innerHTML = radioStations.map(st => `
+          <div class="p-3 rounded-xl ${st.isLive ? 'bg-red-50 border-red-300' : 'bg-stone-50 border-stone-200'} border flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-bold text-stone-900 truncate">
+                ${st.isLive ? '<span class="text-red-700">🔴 LIVE</span> ' : ''}📻 ${escapeHtml(st.name)}
+              </div>
+              <div class="text-stone-500 font-mono-code text-[11px] truncate">${escapeHtml(st.url)}</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="toggleRadioLive('${escapeHtml(st.id)}', ${st.isLive ? 'false' : 'true'})" class="px-2.5 py-1 rounded-lg ${st.isLive ? 'bg-stone-200 hover:bg-stone-300 text-stone-800' : 'bg-red-100 hover:bg-red-200 text-red-800'} font-bold">
+                ${st.isLive ? '■ Stop Live' : '🔴 Go Live'}
+              </button>
+              ${radioStations.length > 1 ? `<button type="button" onclick="deleteRadioStation('${escapeHtml(st.id)}')" class="px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 font-bold">✕</button>` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Room & Catalog Modals
+    function changeRoomStatus(roomId, newStatus) {
+      const r = rooms.find(x => x.id === roomId);
+      if (!r) return;
+      r.status = newStatus;
+      renderRooms();
+      renderAdminPanel();
+      showToast(`Status ${r.name} diperbarui.`, 'success');
+    }
+
+    function openEditRoomModal(roomId) {
+      const r = rooms.find(x => x.id === roomId);
+      if (!r) return;
+      document.getElementById('editRoomId').value = r.id;
+      document.getElementById('editRoomModalTitle').textContent = `Edit ${r.name}`;
+      document.getElementById('editRoomFloor').value = r.floor;
+      document.getElementById('editRoomNormalPrice').value = r.normalPrice;
+      document.getElementById('editRoomDescription').value = r.desc;
+      document.getElementById('editRoomFacilities').value = (r.facilities || []).join(', ');
+      document.getElementById('editRoomDiscountActive').checked = !!r.discountActive;
+      document.getElementById('editRoomPromoPrice').value = r.promoPrice || r.normalPrice;
+      document.getElementById('editRoomDiscountUntil').value = r.discountUntil || '';
+      document.getElementById('editRoomPromoLabel').value = r.promoLabel || '';
+      toggleRoomDiscountFields();
+      document.getElementById('editRoomModal').classList.remove('hidden');
+    }
+
+    function closeEditRoomModal() {
+      document.getElementById('editRoomModal').classList.add('hidden');
+    }
+
+    function toggleRoomDiscountFields() {
+      const active = document.getElementById('editRoomDiscountActive').checked;
+      document.getElementById('editRoomDiscountFields').classList.toggle('hidden', !active);
+    }
+
+    function openEditCatalogModal(type, id) {
+      pendingCatalogEditImageWebP = null;
+      document.getElementById('editCatalogType').value = type;
+      document.getElementById('editCatalogId').value = id;
+      document.getElementById('editCatalogImageInput').value = '';
+
+      if (type === 'sedhah') {
+        const item = sedhahMenuItems.find(x => x.id === id);
+        if (!item) return;
+        document.getElementById('editCatalogModalSubtitle').textContent = 'Menu Pondhok Dhahar Sedhah Ayu';
+        document.getElementById('editCatalogModalTitle').textContent = `Edit: ${item.name}`;
+        document.getElementById('editCatalogName').value = item.name;
+        document.getElementById('editCatalogCategoryText').value = item.category;
+        document.getElementById('editCatalogDesc').value = item.desc;
+        document.getElementById('editCatalogImagePreview').src = item.image;
+        document.getElementById('editCatalogNormalPrice').value = item.normalPrice;
+        document.getElementById('editCatalogUnitLabel').value = item.unitLabel || '/ Porsi';
+        document.getElementById('editCatalogDiscountActive').checked = !!item.discountActive;
+        document.getElementById('editCatalogPromoPrice').value = item.promoPrice || item.normalPrice;
+        document.getElementById('editCatalogDiscountUntil').value = item.discountUntil || '';
+        document.getElementById('editCatalogPromoLabel').value = item.promoLabel || '';
+      } else {
+        const item = promos.find(x => x.id === id);
+        if (!item) return;
+        document.getElementById('editCatalogModalSubtitle').textContent = 'Kartu Promo & Titip Jual';
+        document.getElementById('editCatalogModalTitle').textContent = `Edit: ${item.title}`;
+        document.getElementById('editCatalogName').value = item.title;
+        document.getElementById('editCatalogCategoryText').value = item.badge;
+        document.getElementById('editCatalogDesc').value = item.desc;
+        document.getElementById('editCatalogImagePreview').src = item.image;
+        document.getElementById('editCatalogNormalPrice').value = item.normalPrice || 15000;
+        document.getElementById('editCatalogUnitLabel').value = item.unitLabel || '';
+        document.getElementById('editCatalogDiscountActive').checked = !!item.discountActive;
+        document.getElementById('editCatalogPromoPrice').value = item.promoPrice || item.normalPrice || 12000;
+        document.getElementById('editCatalogDiscountUntil').value = item.discountUntil || '';
+        document.getElementById('editCatalogPromoLabel').value = item.promoLabel || item.badge;
+      }
+      toggleCatalogDiscountFields();
+      document.getElementById('editCatalogItemModal').classList.remove('hidden');
+    }
+
+    function closeEditCatalogModal() {
+      document.getElementById('editCatalogItemModal').classList.add('hidden');
+    }
+
+    function toggleCatalogDiscountFields() {
+      const active = document.getElementById('editCatalogDiscountActive').checked;
+      document.getElementById('editCatalogDiscountFields').classList.toggle('hidden', !active);
+    }
+
+    function deletePromoItem(id) {
+      promos = promos.filter(p => p.id !== id);
+      renderPromos();
+      renderAdminPanel();
+      showToast('Kartu promo dihapus.', 'info');
+    }
+
+    // Guestbook, Tenant, Checkout, Tab, Radar & mIRC Modals
+    function approveGuestbook(id) {
+      const entry = guestbookEntries.find(g => g.id === id);
+      if (entry) entry.approved = true;
+      renderGuestbook();
+      renderAdminPanel();
+      showToast('Buku tamu disetujui & tampil di publik!', 'success');
+    }
+
+    function deleteGuestbook(id) {
+      guestbookEntries = guestbookEntries.filter(g => g.id !== id);
+      renderGuestbook();
+      renderAdminPanel();
+      showToast('Entri buku tamu dihapus.', 'info');
+    }
+
+    function viewTenantKtp(username) {
+      const t = registeredTenants.find(x => x.username === username);
+      if (!t) return;
+      document.getElementById('ktpModalTitle').textContent = `Biodata & KTP: ${t.fullName}`;
+      document.getElementById('ktpModalBody').innerHTML = `
+        <div class="space-y-1.5">
+          <div><strong>Unit Kamar:</strong> ${escapeHtml(t.roomName)} (Nickname: +${escapeHtml(t.nickname)})</div>
+          <div><strong>Nomor HP / WA:</strong> ${escapeHtml(t.phone)}</div>
+          <div><strong>Kontak Darurat:</strong> ${escapeHtml(t.emergencyPhone)}</div>
+          <div><strong>Alamat Asli KTP:</strong> ${escapeHtml(t.originAddress)}</div>
+          <div><strong>Profesi / Instansi:</strong> ${escapeHtml(t.profession)} — ${escapeHtml(t.workplace)}</div>
+          <div><strong>Media Sosial:</strong> ${escapeHtml(t.socialHandle || '-')}</div>
+        </div>
+        ${t.ktpPhoto ? `<img src="${t.ktpPhoto}" class="w-full rounded-xl border border-stone-300 mt-2" />` : '<div class="p-4 rounded-xl bg-stone-100 text-center text-stone-500 mt-2">Dokumen KTP terverifikasi secara fisik saat check-in.</div>'}
+      `;
+      document.getElementById('ktpViewerModal').classList.remove('hidden');
+    }
+
+    function openCheckoutModal(username) {
+      const t = registeredTenants.find(x => x.username === username);
+      if (!t) return;
+      document.getElementById('coTenantUsername').value = t.username;
+      document.getElementById('coTenantLabel').textContent = `${t.fullName} (${t.roomName})`;
+      document.getElementById('coPaymentStatus').value = 'Lunas';
+      document.getElementById('coArrearsAmount').value = '';
+      document.getElementById('coAdminNotes').value = '';
+      toggleArrearsFields();
+      document.getElementById('checkoutModal').classList.remove('hidden');
+    }
+
+    function closeCheckoutModal() {
+      document.getElementById('checkoutModal').classList.add('hidden');
+    }
+
+    function toggleArrearsFields() {
+      const isTunggakan = document.getElementById('coPaymentStatus').value === 'Tunggakan';
+      document.getElementById('coArrearsFields').classList.toggle('hidden', !isTunggakan);
+    }
+
+    function markAlumniSettled(idx) {
+      if (alumniArchive[idx]) {
+        alumniArchive[idx].paymentStatus = 'Lunas';
+        alumniArchive[idx].adminNotes += ' [Dinyatakan LUNAS oleh Admin]';
+        renderAdminPanel();
+        showToast('Status tunggakan alumni diperbarui menjadi LUNAS.', 'success');
+      }
+    }
+
+    function openEditTabModal(key) {
+      const cfg = tabConfigs.find(t => t.key === key);
+      if (!cfg) return;
+      document.getElementById('editTabKey').value = cfg.key;
+      document.getElementById('editTabModalTitle').textContent = `Edit Bagian: ${cfg.navLabel}`;
+      document.getElementById('editTabNavLabel').value = cfg.navLabel;
+      document.getElementById('editTabSectionTitle').value = cfg.sectionTitle;
+      document.getElementById('editTabSectionDesc').value = cfg.sectionDesc;
+      document.getElementById('editTabConfigModal').classList.remove('hidden');
+    }
+
+    function closeEditTabModal() {
+      document.getElementById('editTabConfigModal').classList.add('hidden');
+    }
+
+    function deleteCustomTab(key) {
+      tabConfigs = tabConfigs.filter(t => t.key !== key);
+      if (currentMainTab === key) switchMainTab('about');
+      renderNavigationTabs();
+      applyTabTextsToDOM();
+      renderAdminPanel();
+      showToast('Tab kustom berhasil dihapus.', 'info');
+    }
+
+    function openEditRadarModal(id) {
+      const loc = nearbyLocations.find(x => x.id === id);
+      if (!loc) return;
+      document.getElementById('editRadarId').value = loc.id;
+      document.getElementById('editRadarIcon').value = loc.icon;
+      document.getElementById('editRadarName').value = loc.name;
+      document.getElementById('editRadarDist').value = loc.dist;
+      document.getElementById('editRadarTime').value = loc.time;
+      document.getElementById('editRadarDesc').value = loc.desc;
+      document.getElementById('editRadarItemModal').classList.remove('hidden');
+    }
+
+    function closeEditRadarModal() {
+      document.getElementById('editRadarItemModal').classList.add('hidden');
+    }
+
+    function deleteRadarLocation(id) {
+      nearbyLocations = nearbyLocations.filter(x => x.id !== id);
+      renderNearbyLocations();
+      renderAdminPanel();
+      showToast('Titik lokasi dihapus dari Radar.', 'info');
+    }
+
+    function openEditMircChannelModal(ch) {
+      const obj = mircChannels[ch];
+      if (!obj) return;
+      document.getElementById('editMircChannelKey').value = ch;
+      document.getElementById('editMircChannelModalTitle').textContent = `Edit Topic ${ch}`;
+      document.getElementById('editMircChannelTopicInput').value = obj.topic;
+      document.getElementById('editMircChannelModal').classList.remove('hidden');
+    }
+
+    function closeEditMircChannelModal() {
+      document.getElementById('editMircChannelModal').classList.add('hidden');
+    }
+
+    function deleteMircChannel(ch) {
+      if (ch === '#umum') return;
+      delete mircChannels[ch];
+      if (activeMircTab === ch) activeMircTab = '#umum';
+      renderMircChannels();
+      renderAdminPanel();
+      showToast(`Channel ${ch} dihapus.`, 'info');
+    }
+
+    async function radioApi(action, payload = {}) {
+      const res = await fetch('api/radio.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ action }, payload)),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Gagal menyimpan radio.');
+      radioStations = data.stations;
+      renderRadioStationDropdown();
+      renderAdminPanel();
+      return data;
+    }
+
+    async function deleteRadioStation(id) {
+      if (radioStations.length <= 1) return;
+      try {
+        await radioApi('delete', { id });
+        showToast('Stasiun radio dihapus.', 'info');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function toggleRadioLive(id, live) {
+      try {
+        await radioApi('toggle_live', { id, live });
+        showToast(live ? '🔴 Siaran LIVE dimulai.' : 'Siaran live dihentikan.', live ? 'success' : 'info');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ==================== 9. EVENT LISTENERS & FORM HANDLERS ====================
+    function compressImageToWebP(file, maxSize, squareCrop, callback) {
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        const img = new Image();
+        img.onload = function () {
+          const canvas = document.createElement('canvas');
+          if (squareCrop) {
+            const side = Math.min(img.width, img.height);
+            const sx = (img.width - side) / 2;
+            const sy = (img.height - side) / 2;
+            canvas.width = maxSize;
+            canvas.height = maxSize;
+            canvas.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+          } else {
+            const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+          callback(canvas.toDataURL('image/webp', 0.82));
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Guestbook Photo & Submit
+    document.getElementById('gbPhotoInput').addEventListener('change', function (e) {
+      if (!e.target.files[0]) return;
+      compressImageToWebP(e.target.files[0], 900, false, (webp) => {
+        pendingGbPhotoWebP = webp;
+        document.getElementById('gbPhotoPreview').src = webp;
+        document.getElementById('gbPhotoPreviewWrap').classList.remove('hidden');
+      });
+    });
+
+    document.getElementById('guestbookForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      guestbookEntries.unshift({
+        id: 'GB' + Date.now(),
+        name: document.getElementById('gbName').value.trim(),
+        category: document.getElementById('gbCategory').value,
+        message: document.getElementById('gbMessage').value.trim(),
+        photo: pendingGbPhotoWebP,
+        approved: false,
+        date: 'Baru saja'
+      });
+      this.reset();
+      pendingGbPhotoWebP = null;
+      document.getElementById('gbPhotoPreviewWrap').classList.add('hidden');
+      showToast('Terima kasih! Buku tamu dikirim ke antrean moderasi Admin.', 'success');
+    });
+
+    // Login & Register Tenant Handlers
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      quickFillLogin(
+        document.getElementById('loginUsername').value.trim(),
+        document.getElementById('loginPin').value.trim()
+      );
+    });
+
+    document.getElementById('regKtpInput').addEventListener('change', function (e) {
+      if (!e.target.files[0]) return;
+      compressImageToWebP(e.target.files[0], 900, false, (webp) => {
+        pendingKtpPhotoWebP = webp;
+        document.getElementById('regKtpPreviewImg').src = webp;
+        document.getElementById('regKtpPreviewBox').classList.remove('hidden');
+      });
+    });
+
+    document.getElementById('registerTenantForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!validatedInviteObj && !validateInviteCodeInput()) return;
+      if (!document.getElementById('regAgreeRules').checked) {
+        showToast('Harap centang persetujuan Tata Tertib Kos terlebih dahulu.', 'warning');
+        return;
+      }
+
+      const fullName = document.getElementById('regFullName').value.trim();
+      const pin = document.getElementById('regNewPin').value.trim();
+      const roomObj = rooms.find(r => r.id === validatedInviteObj.roomId);
+      const pricing = roomObj ? getCatalogItemPricing(roomObj) : { formattedActive: 'Rp 650.000' };
+
+      const newTenant = {
+        username: validatedInviteObj.roomId.toLowerCase(),
+        pin,
+        wifiPassword: `${validatedInviteObj.roomId.toLowerCase()}#${Math.floor(100 + Math.random() * 900)}`,
+        fullName,
+        roomId: validatedInviteObj.roomId,
+        roomName: validatedInviteObj.roomName,
+        nickname: validatedInviteObj.nickname,
+        phone: document.getElementById('regPhone').value.trim(),
+        emergencyPhone: document.getElementById('regEmergencyPhone').value.trim(),
+        originAddress: document.getElementById('regOriginAddress').value.trim(),
+        profession: document.getElementById('regProfession').value,
+        workplace: document.getElementById('regWorkplace').value.trim(),
+        socialHandle: document.getElementById('regSocialHandle').value.trim(),
+        ktpPhoto: pendingKtpPhotoWebP,
+        joinDate: 'Hari Ini',
+        billingStatus: 'LUNAS',
+        billingAmount: pricing.formattedActive,
+        billingDue: '21 Desember 2026'
+      };
+
+      registeredTenants.push(newTenant);
+      validatedInviteObj.used = true;
+      if (roomObj) {
+        roomObj.status = 'occupied';
+        roomObj.tenant = fullName;
+      }
+
+      const t = getNowTimeStr();
+      mircChannels['#umum'].messages.push({
+        type: 'system',
+        time: t,
+        text: `*** Selamat bergabung +${newTenant.nickname} (${newTenant.fullName}) di ${newTenant.roomName}!`
+      });
+
+      currentSession = { role: 'tenant', ...newTenant, nickname: '+' + newTenant.nickname };
+      renderRooms();
+      activateLoggedInWorkspace();
+      switchMainTab('portal');
+      switchInternalSubView('mirc');
+      playMircBeep();
+      showToast(`Akun ${newTenant.roomName} aktif! Selamat bergabung di mIRC32.`, 'success');
+    });
+
+    // mIRC32 Form Submit
+    document.getElementById('mircChatForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const input = document.getElementById('mircChatInput');
+      const val = input.value.trim();
+      if (!val) return;
+      executeMircCommand(val);
+      input.value = '';
+    });
+
+    // ==================== PENGATURAN BRAND, LOGO, TITLE & FOOTER HANDLERS ====================
+    document.getElementById('adminBrandLogoInput').addEventListener('change', function (e) {
+      if (!e.target.files[0]) return;
+      compressImageToWebP(e.target.files[0], 256, true, (webp) => {
+        pendingBrandLogoWebP = webp;
+        const prevBox = document.getElementById('adminBrandLogoPreview');
+        if (prevBox) prevBox.innerHTML = `<img src="${pendingBrandLogoWebP}" alt="Preview Logo" class="w-full h-full object-cover" />`;
+      });
+    });
+
+    function resetBrandLogoImage() {
+      pendingBrandLogoWebP = null;
+      siteBrandConfig.logoImage = null;
+      document.getElementById('adminBrandLogoInput').value = '';
+      const txt = document.getElementById('adminBrandLogoText').value.trim() || 'IK';
+      const prevBox = document.getElementById('adminBrandLogoPreview');
+      if (prevBox) prevBox.textContent = txt;
+      applySiteBrandConfig();
+      showToast('Logo dikembalikan ke mode inisial teks.', 'info');
+    }
+
+    document.getElementById('adminSiteBrandForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      siteBrandConfig.logoText = document.getElementById('adminBrandLogoText').value.trim() || 'IK';
+      siteBrandConfig.title = document.getElementById('adminBrandTitle').value.trim();
+      siteBrandConfig.subtitle = document.getElementById('adminBrandSubtitle').value.trim();
+      siteBrandConfig.footerLeft = document.getElementById('adminBrandFooterLeft').value.trim();
+      siteBrandConfig.footerRight = document.getElementById('adminBrandFooterRight').value.trim();
+      if (pendingBrandLogoWebP) {
+        siteBrandConfig.logoImage = pendingBrandLogoWebP;
+        pendingBrandLogoWebP = null;
+      }
+      applySiteBrandConfig();
+      renderAdminPanel();
+      showToast('Identitas logo, title, subtitle & footer berhasil diperbarui!', 'success');
+    });
+
+    // Running Text Form Handler
+    document.getElementById('adminRunningTextForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      tickerConfig.text = document.getElementById('adminTickerTextInput').value.trim();
+      tickerConfig.speed = document.getElementById('adminTickerSpeed').value;
+      tickerConfig.color = document.getElementById('adminTickerColor').value;
+      tickerConfig.active = document.getElementById('adminTickerActive').value === 'true';
+      applyRunningTextConfig();
+      showToast('Running text halaman depan diperbarui!', 'success');
+    });
+
+    // Add Room & Edit Room Handlers
+    document.getElementById('adminAddRoomForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const name = document.getElementById('newRoomName').value.trim();
+      const floor = document.getElementById('newRoomFloor').value.trim();
+      const priceNum = parseInt(document.getElementById('newRoomPrice').value.replace(/\D/g, ''), 10) || 650000;
+      const newId = 'K' + String(rooms.length + 1).padStart(2, '0');
+      rooms.push({
+        id: newId,
+        name,
+        floor,
+        normalPrice: priceNum,
+        discountActive: false,
+        promoPrice: priceNum,
+        discountUntil: '',
+        promoLabel: '',
+        status: 'available',
+        tenant: null,
+        desc: 'Unit kamar baru siap huni dengan jaringan Wi-Fi MikroTik.',
+        facilities: ['Kasur', 'Lemari', 'Wi-Fi MikroTik (2 Device)']
+      });
+      this.reset();
+      renderRooms();
+      renderAdminPanel();
+      showToast(`${name} berhasil ditambahkan!`, 'success');
+    });
+
+    document.getElementById('editRoomForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const id = document.getElementById('editRoomId').value;
+      const r = rooms.find(x => x.id === id);
+      if (!r) return;
+      r.floor = document.getElementById('editRoomFloor').value.trim();
+      r.normalPrice = parseInt(document.getElementById('editRoomNormalPrice').value, 10) || r.normalPrice;
+      r.desc = document.getElementById('editRoomDescription').value.trim();
+      r.facilities = document.getElementById('editRoomFacilities').value.split(',').map(s => s.trim()).filter(Boolean);
+      r.discountActive = document.getElementById('editRoomDiscountActive').checked;
+      r.promoPrice = parseInt(document.getElementById('editRoomPromoPrice').value, 10) || r.normalPrice;
+      r.discountUntil = document.getElementById('editRoomDiscountUntil').value;
+      r.promoLabel = document.getElementById('editRoomPromoLabel').value.trim() || 'Promo Spesial';
+      closeEditRoomModal();
+      renderRooms();
+      renderAdminPanel();
+      showToast(`Detail & tarif ${r.name} berhasil disimpan!`, 'success');
+    });
+
+    // Generate Code & Move Room Handlers
+    document.getElementById('adminGenerateCodeForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const roomId = document.getElementById('adminSelectVacantRoom').value;
+      const rawNick = document.getElementById('adminTargetNickname').value.trim().replace(/\s+/g, '');
+      const room = rooms.find(r => r.id === roomId);
+      if (!room || !rawNick) return;
+      const numPart = room.name.replace(/\D/g, '').padStart(2, '0');
+      const code = `KMR${numPart}-${rawNick.toUpperCase()}`;
+      const nickname = `Kamar${numPart}_${rawNick}`;
+      inviteCodes.unshift({ code, roomId: room.id, roomName: room.name, nickname, used: false });
+      this.reset();
+      renderAdminPanel();
+      showToast(`Kode ${code} diterbitkan!`, 'success');
+    });
+
+    document.getElementById('adminMoveRoomForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const username = document.getElementById('adminMoveTenantSelect').value;
+      const targetRoomId = document.getElementById('adminMoveTargetRoomSelect').value;
+      const tenant = registeredTenants.find(t => t.username === username);
+      const targetRoom = rooms.find(r => r.id === targetRoomId);
+      if (!tenant || !targetRoom) return;
+
+      const oldRoom = rooms.find(r => r.id === tenant.roomId);
+      const oldRoomName = tenant.roomName;
+      if (oldRoom) { oldRoom.status = 'available'; oldRoom.tenant = null; }
+
+      targetRoom.status = 'occupied';
+      targetRoom.tenant = tenant.fullName;
+
+      const newNum = targetRoom.name.replace(/\D/g, '').padStart(2, '0');
+      const baseName = tenant.nickname.split('_')[1] || tenant.fullName.split(' ')[0];
+      tenant.roomId = targetRoom.id;
+      tenant.roomName = targetRoom.name;
+      tenant.nickname = `Kamar${newNum}_${baseName}`;
+
+      mircChannels['#umum'].messages.push({
+        type: 'system',
+        time: getNowTimeStr(),
+        text: `*** Mutasi Kamar: ${tenant.fullName} pindah dari ${oldRoomName} ke ${targetRoom.name} (+${tenant.nickname}).`
+      });
+
+      renderRooms();
+      renderMircUserList();
+      renderAdminPanel();
+      showToast(`${tenant.fullName} dipindahkan ke ${targetRoom.name}.`, 'success');
+    });
+
+    // Promo & Catalog Edit Handlers
+    document.getElementById('adminPromoImageInput').addEventListener('change', function (e) {
+      if (!e.target.files[0]) return;
+      compressImageToWebP(e.target.files[0], 800, true, (webp) => {
+        pendingPromoSquareWebP = webp;
+        document.getElementById('adminPromoSquarePreview').src = webp;
+        document.getElementById('adminPromoSquarePreviewWrap').classList.remove('hidden');
+      });
+    });
+
+    document.getElementById('adminAddPromoForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const title = document.getElementById('adminPromoTitle').value.trim();
+      const category = document.getElementById('adminPromoCategory').value;
+      const badge = document.getElementById('adminPromoBadge').value.trim();
+      const desc = document.getElementById('adminPromoDesc').value.trim();
+      const img = pendingPromoSquareWebP || createSquarePromoSvgDataUrl(title, badge, '#78350f', '#451a03', '🎁');
+
+      promos.unshift({
+        id: 'promo-' + Date.now(),
+        title,
+        category,
+        badge,
+        desc,
+        image: img,
+        normalPrice: 0,
+        discountActive: false
+      });
+
+      if (document.getElementById('adminPromoNotifyCheck').checked) {
+        mircChannels['#pengumuman'].messages.push({
+          type: 'chat',
+          time: getNowTimeStr(),
+          nick: '@AdminKos',
+          role: 'admin',
+          text: `[PROMO BARU] ${title} (${badge}) — ${desc}`
+        });
+      }
+
+      this.reset();
+      pendingPromoSquareWebP = null;
+      document.getElementById('adminPromoSquarePreviewWrap').classList.add('hidden');
+      renderPromos();
+      renderAdminPanel();
+      showToast('Promo baru berhasil diterbitkan!', 'success');
+    });
+
+    document.getElementById('editCatalogImageInput').addEventListener('change', function (e) {
+      if (!e.target.files[0]) return;
+      compressImageToWebP(e.target.files[0], 800, true, (webp) => {
+        pendingCatalogEditImageWebP = webp;
+        document.getElementById('editCatalogImagePreview').src = webp;
+      });
+    });
+
+    document.getElementById('editCatalogItemForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const type = document.getElementById('editCatalogType').value;
+      const id = document.getElementById('editCatalogId').value;
+      const name = document.getElementById('editCatalogName').value.trim();
+      const catText = document.getElementById('editCatalogCategoryText').value.trim();
+      const desc = document.getElementById('editCatalogDesc').value.trim();
+      const normalPrice = parseInt(document.getElementById('editCatalogNormalPrice').value, 10) || 10000;
+      const unitLabel = document.getElementById('editCatalogUnitLabel').value.trim();
+      const discountActive = document.getElementById('editCatalogDiscountActive').checked;
+      const promoPrice = parseInt(document.getElementById('editCatalogPromoPrice').value, 10) || normalPrice;
+      const discountUntil = document.getElementById('editCatalogDiscountUntil').value;
+      const promoLabel = document.getElementById('editCatalogPromoLabel').value.trim() || 'Promo';
+
+      if (type === 'sedhah') {
+        const item = sedhahMenuItems.find(x => x.id === id);
+        if (item) {
+          item.name = name;
+          item.category = catText;
+          item.desc = desc;
+          item.normalPrice = normalPrice;
+          item.unitLabel = unitLabel;
+          item.discountActive = discountActive;
+          item.promoPrice = promoPrice;
+          item.discountUntil = discountUntil;
+          item.promoLabel = promoLabel;
+          if (pendingCatalogEditImageWebP) item.image = pendingCatalogEditImageWebP;
+        }
+        renderSedhahMenu();
+      } else {
+        const item = promos.find(x => x.id === id);
+        if (item) {
+          item.title = name;
+          item.badge = catText;
+          item.desc = desc;
+          item.normalPrice = normalPrice;
+          item.unitLabel = unitLabel;
+          item.discountActive = discountActive;
+          item.promoPrice = promoPrice;
+          item.discountUntil = discountUntil;
+          item.promoLabel = promoLabel;
+          if (pendingCatalogEditImageWebP) item.image = pendingCatalogEditImageWebP;
+        }
+        renderPromos();
+      }
+      closeEditCatalogModal();
+      renderAdminPanel();
+      showToast('Perubahan etalase & harga coret disimpan!', 'success');
+    });
+
+    // Check-Out Form Handler
+    document.getElementById('checkoutForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const username = document.getElementById('coTenantUsername').value;
+      const idx = registeredTenants.findIndex(t => t.username === username);
+      if (idx === -1) return;
+
+      const tenant = registeredTenants[idx];
+      const paymentStatus = document.getElementById('coPaymentStatus').value;
+      const arrearsAmount = parseInt(document.getElementById('coArrearsAmount').value, 10) || 0;
+      const adminNotes = document.getElementById('coAdminNotes').value.trim();
+      const postStatus = document.getElementById('coPostRoomStatus').value;
+
+      alumniArchive.unshift({
+        ...tenant,
+        checkoutDate: 'Hari Ini',
+        paymentStatus,
+        arrearsAmount: paymentStatus === 'Tunggakan' ? arrearsAmount : 0,
+        adminNotes
+      });
+
+      const roomObj = rooms.find(r => r.id === tenant.roomId);
+      if (roomObj) {
+        roomObj.status = postStatus;
+        roomObj.tenant = null;
+      }
+
+      registeredTenants.splice(idx, 1);
+      mircChannels['#umum'].messages.push({
+        type: 'system',
+        time: getNowTimeStr(),
+        text: `*** [INFO] +${tenant.nickname} (${tenant.roomName}) telah check-out. Terima kasih!`
+      });
+
+      closeCheckoutModal();
+      renderRooms();
+      renderMircUserList();
+      renderAdminPanel();
+      showToast(`Check-out ${tenant.fullName} diproses! Ingat hapus user MikroTik ${tenant.roomName}.`, 'warning');
+    });
+
+    // Tab Navigation & Radar Location Form Handlers
+    document.getElementById('adminAddTabForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const navLabel = document.getElementById('newTabNavName').value.trim();
+      const sectionTitle = document.getElementById('newTabHeading').value.trim();
+      const sectionDesc = document.getElementById('newTabDescription').value.trim();
+      const key = 'custom_' + Date.now();
+      tabConfigs.push({ key, navLabel, sectionTitle, sectionDesc, isSystem: false });
+      this.reset();
+      applyTabTextsToDOM();
+      renderNavigationTabs();
+      renderAdminPanel();
+      showToast(`Tab "${navLabel}" berhasil ditambahkan!`, 'success');
+    });
+
+    document.getElementById('editTabConfigForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const key = document.getElementById('editTabKey').value;
+      const cfg = tabConfigs.find(t => t.key === key);
+      if (!cfg) return;
+      cfg.navLabel = document.getElementById('editTabNavLabel').value.trim();
+      cfg.sectionTitle = document.getElementById('editTabSectionTitle').value.trim();
+      cfg.sectionDesc = document.getElementById('editTabSectionDesc').value.trim();
+      closeEditTabModal();
+      applyTabTextsToDOM();
+      renderNavigationTabs();
+      renderAdminPanel();
+      showToast('Pengaturan tab berhasil diperbarui!', 'success');
+    });
+
+    document.getElementById('adminAddRadarForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      nearbyLocations.push({
+        id: 'LOC' + Date.now(),
+        icon: document.getElementById('newRadarIcon').value.trim() || '📍',
+        name: document.getElementById('newRadarName').value.trim(),
+        dist: document.getElementById('newRadarDist').value.trim(),
+        time: document.getElementById('newRadarTime').value.trim(),
+        desc: document.getElementById('newRadarDesc').value.trim()
+      });
+      this.reset();
+      renderNearbyLocations();
+      renderAdminPanel();
+      showToast('Lokasi baru ditambahkan ke Radar Sekitar!', 'success');
+    });
+
+    document.getElementById('editRadarItemForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const id = document.getElementById('editRadarId').value;
+      const loc = nearbyLocations.find(x => x.id === id);
+      if (!loc) return;
+      loc.icon = document.getElementById('editRadarIcon').value.trim() || '📍';
+      loc.name = document.getElementById('editRadarName').value.trim();
+      loc.dist = document.getElementById('editRadarDist').value.trim();
+      loc.time = document.getElementById('editRadarTime').value.trim();
+      loc.desc = document.getElementById('editRadarDesc').value.trim();
+      closeEditRadarModal();
+      renderNearbyLocations();
+      renderAdminPanel();
+      showToast('Data titik lokasi Radar diperbarui!', 'success');
+    });
+
+    // ==================== MANAJEMEN CHANNEL & TOPIC mIRC32 HANDLERS ====================
+    document.getElementById('adminAddMircChannelForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      let rawName = document.getElementById('newMircChannelName').value.trim().toLowerCase().replace(/\s+/g, '-');
+      if (!rawName.startsWith('#')) rawName = '#' + rawName;
+      const topic = document.getElementById('newMircChannelTopic').value.trim();
+
+      if (mircChannels[rawName]) {
+        showToast(`Channel ${rawName} sudah tersedia!`, 'warning');
+        return;
+      }
+
+      mircChannels[rawName] = {
+        topic,
+        messages: [{ type: 'system', time: getNowTimeStr(), text: `*** Channel ${rawName} dibuat oleh Admin. Topic: ${topic}` }]
+      };
+      this.reset();
+      renderMircChannels();
+      renderAdminPanel();
+      showToast(`Channel ${rawName} berhasil ditambahkan ke mIRC32!`, 'success');
+    });
+
+    document.getElementById('editMircChannelForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const ch = document.getElementById('editMircChannelKey').value;
+      const newTopic = document.getElementById('editMircChannelTopicInput').value.trim();
+      if (!mircChannels[ch]) return;
+      mircChannels[ch].topic = newTopic;
+      mircChannels[ch].messages.push({
+        type: 'system',
+        time: getNowTimeStr(),
+        text: `*** @AdminKos mengubah topic menjadi: ${newTopic}`
+      });
+      closeEditMircChannelModal();
+      renderMircChannels();
+      if (activeMircTab === ch) renderMircMessages();
+      renderAdminPanel();
+      showToast(`Topic ${ch} diperbarui!`, 'success');
+    });
+
+    // ==================== MANAJEMEN RADIO ONLINE HANDLER ====================
+    document.getElementById('adminAddRadioForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const name = document.getElementById('newRadioName').value.trim();
+      const url = document.getElementById('newRadioUrl').value.trim();
+      const isLive = document.getElementById('newRadioLive')?.checked || false;
+      if (!name || !url) return;
+      if (radioStations.length >= 5) {
+        showToast('Maksimal 5 stasiun radio. Hapus salah satu dulu.', 'warning');
+        return;
+      }
+
+      try {
+        await radioApi('add', { name, url, genre: 'Live Stream', isLive });
+        this.reset();
+        showToast(`Stasiun "${name}" ditambahkan ke Radio Kos!`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    // ==================== 10. INITIALIZATION ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      initDefaultSedhahMenu();
+      initDefaultPromos();
+      initDefaultMircLogs();
+      applySiteBrandConfig();
+      applyTabTextsToDOM();
+      renderNavigationTabs();
+      applyRunningTextConfig();
+      renderRooms();
+      renderSedhahMenu();
+      renderPromos();
+      renderGuestbook();
+      renderNearbyLocations();
+      renderRadioStationDropdown();
+
+      setInterval(() => {
+        const clk = document.getElementById('mircClock');
+        if (clk) clk.textContent = getNowTimeStr();
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

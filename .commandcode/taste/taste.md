@@ -1,0 +1,2 @@
+- Prefers absolute (or dynamic BASE_URL) paths for navbar/sidebar navigation links instead of relative paths. Confidence: 0.8
+- Writes in Indonesian (casual, first person "aku") and expects replies in Indonesian. Confidence: 0.7
