@@ -1705,26 +1705,51 @@
       };
     }
 
-    async function loadPortalState() {
-      for (const endpoint of ['php-api/state.php', 'api/state']) {
+    const STATE_ENDPOINT_CACHE_KEY = 'portalStateEndpoint';
+    const RADIO_ENDPOINT_CACHE_KEY = 'portalRadioEndpoint';
+
+    function orderEndpointsByCache(cacheKey, candidates) {
+      try {
+        const saved = localStorage.getItem(cacheKey);
+        if (saved && candidates.includes(saved)) return [saved, ...candidates.filter(endpoint => endpoint !== saved)];
+      } catch (err) { /* localStorage tidak tersedia */ }
+      return candidates;
+    }
+
+    function rememberEndpoint(cacheKey, endpoint) {
+      try { localStorage.setItem(cacheKey, endpoint); } catch (err) { /* abaikan */ }
+    }
+
+    async function fetchFirstValidEndpoint(candidates, isValid) {
+      const results = await Promise.all(candidates.map(async endpoint => {
         try {
           const data = await fetchJson(endpoint, { headers: { Accept: 'application/json' } });
-          if (!data || !data.ok) continue;
-          stateEndpoint = endpoint;
-          return data.state || null;
-        } catch (err) { /* endpoint tidak tersedia */ }
+          return { endpoint, data };
+        } catch (err) {
+          return { endpoint, data: null };
+        }
+      }));
+      for (const result of results) {
+        if (result.data && isValid(result.data)) return result;
       }
       return null;
     }
 
+    async function loadPortalState() {
+      const candidates = orderEndpointsByCache(STATE_ENDPOINT_CACHE_KEY, ['php-api/state.php', 'api/state']);
+      const result = await fetchFirstValidEndpoint(candidates, data => data.ok);
+      if (!result) return null;
+      stateEndpoint = result.endpoint;
+      rememberEndpoint(STATE_ENDPOINT_CACHE_KEY, result.endpoint);
+      return result.data.state || null;
+    }
+
     async function loadRadioStationsFromServer() {
-      for (const endpoint of ['php-api/radio.php', 'api/radio']) {
-        try {
-          const data = await fetchJson(endpoint, { headers: { Accept: 'application/json' } });
-          if (data && data.ok && Array.isArray(data.stations)) return data.stations;
-        } catch (err) { /* endpoint tidak tersedia */ }
-      }
-      return null;
+      const candidates = orderEndpointsByCache(RADIO_ENDPOINT_CACHE_KEY, ['php-api/radio.php', 'api/radio']);
+      const result = await fetchFirstValidEndpoint(candidates, data => data.ok && Array.isArray(data.stations));
+      if (!result) return null;
+      rememberEndpoint(RADIO_ENDPOINT_CACHE_KEY, result.endpoint);
+      return result.data.stations;
     }
 
     function applyPersistedState(state) {
@@ -1780,10 +1805,9 @@
     }
 
     async function hydratePortalState() {
-      const state = await loadPortalState();
+      const [state, radios] = await Promise.all([loadPortalState(), loadRadioStationsFromServer()]);
       applyPersistedState(state);
       registeredTenants.forEach(ensureTenantFinanceFields);
-      const radios = await loadRadioStationsFromServer();
       if (radios) radioStations = radios;
       lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
       isHydratingState = false;
@@ -2247,19 +2271,40 @@
       const publicTabs = tabConfigs.filter(t => !t.isSubSection);
       let html = publicTabs.map(t => {
         const active = currentMainTab === t.key;
-        return `<button onclick="switchMainTab('${escapeHtml(t.key)}')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">${escapeHtml(t.navLabel)}</button>`;
+        return `<button data-tab-key="${escapeHtml(t.key)}" onclick="switchMainTab('${escapeHtml(t.key)}')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">${escapeHtml(t.navLabel)}</button>`;
       }).join('');
 
       const portalActive = currentMainTab === 'portal';
-      html += `<button onclick="switchMainTab('portal')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${portalActive ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}">💬 Portal Kos</button>`;
+      html += `<button data-tab-key="portal" onclick="switchMainTab('portal')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${portalActive ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}">💬 Portal Kos</button>`;
 
       if (currentSession && currentSession.role === 'admin') {
         const adminActive = currentMainTab === 'admin';
-        html += `<button onclick="switchMainTab('admin')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${adminActive ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}">👑 Panel Admin</button>`;
+        html += `<button data-tab-key="admin" onclick="switchMainTab('admin')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${adminActive ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}">👑 Panel Admin</button>`;
       }
 
       nav.innerHTML = html;
       renderAuthHeaderSlot();
+    }
+
+    function updateNavigationActiveState() {
+      const nav = document.getElementById('mainNavBar');
+      if (!nav) return;
+      const buttons = nav.querySelectorAll('[data-tab-key]');
+      if (!buttons.length) {
+        renderNavigationTabs();
+        return;
+      }
+      buttons.forEach(btn => {
+        const key = btn.dataset.tabKey;
+        const active = currentMainTab === key;
+        if (key === 'portal') {
+          btn.className = `px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${active ? 'bg-amber-800 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'}`;
+        } else if (key === 'admin') {
+          btn.className = `px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition flex items-center gap-1.5 ${active ? 'bg-red-800 text-white shadow-sm' : 'bg-red-50 text-red-900 border border-red-200 hover:bg-red-100'}`;
+        } else {
+          btn.className = `px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}`;
+        }
+      });
     }
 
     function renderAuthHeaderSlot() {
@@ -2289,7 +2334,7 @@
       document.querySelectorAll('.main-tab-panel').forEach(p => p.classList.add('hidden'));
       const target = document.getElementById(`tab-${tabKey}`);
       if (target) target.classList.remove('hidden');
-      renderNavigationTabs();
+      updateNavigationActiveState();
       if (tabKey === 'admin') renderAdminPanel();
       if (tabKey === 'portal' && currentSession) {
         renderMircChannels();
@@ -2718,6 +2763,7 @@
     function logoutPortal() {
       stopKosRadioPlayback();
       currentSession = null;
+      renderNavigationTabs();
       memberPwaIntent = false;
       setMemberPwaInviteActive(false);
       document.getElementById('portalAuthContainer').classList.remove('hidden');
@@ -4712,12 +4758,7 @@
     });
 
     // ==================== 10. INITIALIZATION ====================
-    window.addEventListener('DOMContentLoaded', async () => {
-      await hydratePortalState();
-      initDefaultSedhahMenu();
-      initDefaultPromos();
-      initDefaultMircLogs();
-      registerStateAutoSave();
+    function refreshDynamicViews() {
       applySiteBrandConfig();
       applyTabTextsToDOM();
       renderNavigationTabs();
@@ -4729,10 +4770,25 @@
       renderNearbyLocations();
       renderRadioStationDropdown();
       renderKosRules();
-      initAdminCardControls();
       applyAdminCardOrder();
       updateAdminCardControlsState();
+      if (currentMainTab === 'admin') renderAdminPanel();
+      if (currentSession && currentSession.role === 'tenant') {
+        renderAccountCard();
+        renderPaymentBar();
+        renderPaymentLogs();
+      }
+      applyBillingViewForSession();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initDefaultSedhahMenu();
+      initDefaultPromos();
+      initDefaultMircLogs();
+      registerStateAutoSave();
+      initAdminCardControls();
       initAdminCardDragAndDrop();
+      refreshDynamicViews();
 
       setInterval(() => {
         const clk = document.getElementById('mircClock');
@@ -4742,6 +4798,10 @@
       setInterval(() => {
         if (currentSession && currentSession.role === 'tenant') renderPaymentBar();
       }, 60000);
+
+      hydratePortalState()
+        .then(refreshDynamicViews)
+        .catch(() => { /* tetap tampil dengan data default */ });
     });
   </script>
 </body>
