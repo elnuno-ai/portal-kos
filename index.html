@@ -2858,22 +2858,60 @@
       showToast(`Channel ${ch} dihapus.`, 'info');
     }
 
-    async function radioApi(action, payload = {}) {
-      const res = await fetch('api/radio.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.assign({ action }, payload)),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Gagal menyimpan radio.');
-      radioStations = data.stations;
+    function applyLocalRadioChange(action, payload) {
+      if (action === 'add') {
+        radioStations.push({
+          id: 'RAD' + Date.now(),
+          name: payload.name,
+          genre: payload.genre || 'Live Stream',
+          url: payload.url,
+          isLive: !!payload.isLive
+        });
+      } else if (action === 'delete') {
+        radioStations = radioStations.filter(s => s.id !== payload.id);
+      } else if (action === 'toggle_live') {
+        const st = radioStations.find(s => s.id === payload.id);
+        if (st) st.isLive = !!payload.live;
+      }
       renderRadioStationDropdown();
       renderAdminPanel();
-      return data;
+    }
+
+    async function radioApi(action, payload = {}) {
+      const body = JSON.stringify(Object.assign({ action }, payload));
+      const endpoints = ['api/radio.php', 'api/radio'];
+
+      for (const endpoint of endpoints) {
+        let data = null;
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body,
+          });
+          if ((res.headers.get('content-type') || '').includes('application/json')) {
+            data = await res.json();
+          }
+        } catch (err) {
+          data = null;
+        }
+        if (!data) continue;
+        if (!data.ok) throw new Error(data.error || 'Gagal menyimpan radio.');
+        radioStations = data.stations;
+        renderRadioStationDropdown();
+        renderAdminPanel();
+        return data;
+      }
+
+      applyLocalRadioChange(action, payload);
+      return { ok: true, stations: radioStations, offline: true };
     }
 
     async function deleteRadioStation(id) {
-      if (radioStations.length <= 1) return;
+      if (radioStations.length <= 1) {
+        showToast('Minimal harus ada 1 stasiun radio.', 'warning');
+        return;
+      }
       try {
         await radioApi('delete', { id });
         showToast('Stasiun radio dihapus.', 'info');
