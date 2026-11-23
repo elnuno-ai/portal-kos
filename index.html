@@ -497,6 +497,17 @@
                 </label>
               </div>
 
+              <!-- Ajakan Notifikasi PWA Khusus Member -->
+              <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+                <div class="text-xs font-bold text-emerald-950">🔔 Notifikasi Pengingat Khusus Member Kos</div>
+                <p class="text-[11px] text-emerald-900 leading-relaxed">
+                  Aktifkan notifikasi pengingat jatuh tempo sewa, pengumuman internal kos, dan mention mIRC32. Notifikasi ini <strong>khusus member kos terdaftar</strong> — tidak dikirim ke pengunjung umum.
+                </p>
+                <button type="button" id="btnMemberPwaRegister" onclick="enableMemberPwaFromRegister()" class="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition">
+                  🔔 Aktifkan Notifikasi Pengingat Kos & Jatuh Tempo (PWA)
+                </button>
+              </div>
+
               <button type="submit" class="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm transition shadow-md">
                 ✅ Daftar Sekarang (Username & PIN Otomatis)
               </button>
@@ -549,6 +560,9 @@
           </div>
           <audio id="kosRadioAudioEl" preload="none"></audio>
         </div>
+
+        <!-- STICKY STATUS PEMBAYARAN (SEMUA SUB-TAB) -->
+        <div id="memberPaymentBar" class="hidden"></div>
 
         <!-- SUB-VIEW 1: mIRC32 LIVE CHAT -->
         <div id="internal-mirc" class="internal-subview">
@@ -689,6 +703,16 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- RIWAYAT PEMBAYARAN BULANAN -->
+          <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-lg text-stone-900">🧾 Riwayat Pembayaran Bulanan</h3>
+              <span id="paymentLogsCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700">0 Log</span>
+            </div>
+            <p class="text-xs text-stone-500">Catatan pembayaran sewa bulanan Anda. Hubungi Admin jika ada pembayaran yang belum tercatat.</p>
+            <div id="paymentLogsList" class="space-y-2 text-xs"></div>
           </div>
         </div>
 
@@ -1426,6 +1450,21 @@
     </div>
   </div>
 
+  <!-- MODAL LOG PEMBAYARAN PENGHUNI -->
+  <div id="paymentLogsModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Riwayat Pembayaran Member</span>
+          <h4 class="font-extrabold text-stone-900 text-base" id="paymentLogsModalTitle">Log Pembayaran</h4>
+        </div>
+        <button type="button" onclick="closePaymentLogsModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+      <div id="paymentLogsModalBody" class="space-y-2 max-h-80 overflow-y-auto text-xs"></div>
+      <button type="button" onclick="closePaymentLogsModal()" class="w-full py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Tutup</button>
+    </div>
+  </div>
+
   <!-- FOOTER -->
   <footer class="bg-stone-900 text-stone-400 text-xs py-6 px-4 mt-12 border-t border-stone-800">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -1627,6 +1666,7 @@
     async function hydratePortalState() {
       const state = await loadPortalState();
       applyPersistedState(state);
+      registeredTenants.forEach(ensureTenantFinanceFields);
       const radios = await loadRadioStationsFromServer();
       if (radios) radioStations = radios;
       lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
@@ -1730,6 +1770,225 @@
     function buildWhatsappUrl(message) {
       const number = normalizeWhatsappNumber(catalogConfig && catalogConfig.whatsappNumber);
       return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    }
+
+    // ==================== 2B. UTILITAS PEMBAYARAN & NOTIFIKASI MEMBER ====================
+    const MONTHS_ID_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const MONTHS_ID_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    let memberPwaIntent = false;
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function toISODateLocal(date) {
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function parseISODateLocal(value) {
+      if (!value || typeof value !== 'string') return null;
+      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!match) return null;
+      return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+
+    function parseIndonesianDate(value) {
+      if (!value || typeof value !== 'string') return null;
+      const match = value.trim().match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+      if (!match) return null;
+      const monthIndex = MONTHS_ID_SHORT.findIndex(m => m.toLowerCase() === match[2].slice(0, 3).toLowerCase());
+      if (monthIndex === -1) return null;
+      return new Date(Number(match[3]), monthIndex, Number(match[1]));
+    }
+
+    function addDaysISO(iso, days) {
+      const date = parseISODateLocal(iso) || new Date();
+      date.setDate(date.getDate() + days);
+      return toISODateLocal(date);
+    }
+
+    function addMonthsISO(iso, months) {
+      const date = parseISODateLocal(iso) || new Date();
+      const day = date.getDate();
+      date.setDate(1);
+      date.setMonth(date.getMonth() + months);
+      const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      date.setDate(Math.min(day, lastDay));
+      return toISODateLocal(date);
+    }
+
+    function formatDateID(iso) {
+      const date = parseISODateLocal(iso);
+      if (!date) return iso || '-';
+      return `${pad2(date.getDate())} ${MONTHS_ID_SHORT[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    function formatPeriodID(iso) {
+      const date = parseISODateLocal(iso) || new Date();
+      return `${MONTHS_ID_LONG[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    function parseRupiahNumber(value) {
+      const digits = String(value == null ? '' : value).replace(/[^\d]/g, '');
+      return digits ? Number(digits) : 0;
+    }
+
+    function ensureTenantFinanceFields(tenant) {
+      if (!tenant || typeof tenant !== 'object') return tenant;
+      if (!tenant.nextDueDate) {
+        const baseDate = parseIndonesianDate(tenant.joinDate) || new Date();
+        tenant.nextDueDate = addDaysISO(toISODateLocal(baseDate), 30);
+      }
+      if (typeof tenant.pwaMemberSubscribed !== 'boolean') tenant.pwaMemberSubscribed = false;
+      if (!Array.isArray(tenant.paymentLogs)) tenant.paymentLogs = [];
+      return tenant;
+    }
+
+    function getTenantDueDays(tenant) {
+      const dueDate = parseISODateLocal(tenant && tenant.nextDueDate);
+      if (!dueDate) return null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      dueDate.setHours(0, 0, 0, 0);
+      return Math.round((dueDate - today) / 86400000);
+    }
+
+    function setMemberPwaInviteActive(active) {
+      const btn = document.getElementById('btnMemberPwaRegister');
+      if (!btn) return;
+      if (active) {
+        btn.textContent = '✅ Notifikasi Member Aktif';
+        btn.disabled = true;
+        btn.className = 'w-full py-2.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs cursor-default';
+      } else {
+        btn.textContent = '🔔 Aktifkan Notifikasi Pengingat Kos & Jatuh Tempo (PWA)';
+        btn.disabled = false;
+        btn.className = 'w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition';
+      }
+    }
+
+    async function enableMemberPwaFromRegister() {
+      if (!('Notification' in window)) {
+        showToast('Browser ini tidak mendukung notifikasi.', 'warning');
+        return;
+      }
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          showToast('Izin notifikasi belum diberikan. Anda dapat mengaktifkannya dari pengaturan browser.', 'warning');
+          return;
+        }
+        memberPwaIntent = true;
+        setMemberPwaInviteActive(true);
+        showToast('Notifikasi member aktif. Status akan tersimpan setelah akun selesai dibuat.', 'success');
+
+        if (currentSession && currentSession.role === 'tenant') {
+          const tenant = registeredTenants.find(t => t.username === currentSession.username);
+          if (tenant) {
+            tenant.pwaMemberSubscribed = true;
+            currentSession.pwaMemberSubscribed = true;
+            renderPaymentBar();
+            queueStateSave();
+          }
+        }
+      } catch (err) {
+        showToast('Gagal meminta izin notifikasi.', 'error');
+      }
+    }
+
+    function notifyMemberDue(tenant) {
+      if (!tenant || !tenant.pwaMemberSubscribed) return;
+      const key = `kosDueNotify:${tenant.username}:${toISODateLocal(new Date())}`;
+      try {
+        if (sessionStorage.getItem(key)) return;
+        sessionStorage.setItem(key, '1');
+      } catch (err) { /* sessionStorage tidak tersedia */ }
+
+      const days = getTenantDueDays(tenant);
+      const message = days === 0
+        ? 'Jatuh tempo sewa hari ini.'
+        : `Jatuh tempo sewa ${days} hari lagi (${formatDateID(tenant.nextDueDate)}).`;
+      showToast(`🔔 Pengingat member: ${message}`, 'warning');
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('Pengingat Jatuh Tempo Kos', { body: message });
+        } catch (err) { /* abaikan */ }
+      }
+    }
+
+    function renderPaymentBar() {
+      const bar = document.getElementById('memberPaymentBar');
+      if (!bar) return;
+      if (!currentSession || currentSession.role !== 'tenant') {
+        bar.classList.add('hidden');
+        bar.innerHTML = '';
+        return;
+      }
+      const tenant = ensureTenantFinanceFields(
+        registeredTenants.find(t => t.username === currentSession.username) || currentSession
+      );
+      const days = getTenantDueDays(tenant);
+      if (days === null) {
+        bar.classList.add('hidden');
+        return;
+      }
+      bar.classList.remove('hidden');
+
+      if (days > 5) {
+        bar.className = 'rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs shadow-sm';
+        bar.innerHTML = `
+          <span class="font-bold text-emerald-900">✅ Bulan berjalan lunas</span>
+          <span class="text-emerald-800">⏳ Jatuh tempo berikutnya: <strong>${days} hari lagi</strong> • ${formatDateID(tenant.nextDueDate)}</span>
+        `;
+      } else if (days >= 0) {
+        bar.className = 'rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs shadow-sm';
+        bar.innerHTML = `
+          <span class="font-bold text-amber-950">⚠️ ${days === 0 ? 'Jatuh tempo hari ini' : `Jatuh tempo ${days} hari lagi`} • ${formatDateID(tenant.nextDueDate)}</span>
+          <button type="button" onclick="switchInternalSubView('billing')" class="px-3 py-1 rounded-lg bg-amber-800 hover:bg-amber-900 text-white font-bold text-[11px]">Buka Tagihan</button>
+        `;
+        notifyMemberDue(tenant);
+      } else {
+        bar.className = 'rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs shadow-sm';
+        bar.innerHTML = `
+          <span class="font-bold text-red-900">🚨 Pembayaran terlambat ${Math.abs(days)} hari • Jatuh tempo ${formatDateID(tenant.nextDueDate)}</span>
+          <button type="button" onclick="switchInternalSubView('billing')" class="px-3 py-1 rounded-lg bg-red-800 hover:bg-red-900 text-white font-bold text-[11px]">Buka Tagihan</button>
+        `;
+      }
+    }
+
+    function renderPaymentLogs() {
+      const list = document.getElementById('paymentLogsList');
+      const countEl = document.getElementById('paymentLogsCount');
+      if (!list) return;
+      const tenant = currentSession && currentSession.role === 'tenant'
+        ? ensureTenantFinanceFields(registeredTenants.find(t => t.username === currentSession.username) || currentSession)
+        : null;
+      const logs = tenant && Array.isArray(tenant.paymentLogs)
+        ? tenant.paymentLogs.slice().sort((a, b) => String(b.paidDate).localeCompare(String(a.paidDate)))
+        : [];
+      if (countEl) countEl.textContent = `${logs.length} Log`;
+
+      if (!tenant) {
+        list.innerHTML = '<div class="text-xs text-stone-500 italic">Masuk sebagai penghuni untuk melihat riwayat pembayaran.</div>';
+        return;
+      }
+      if (!logs.length) {
+        list.innerHTML = '<div class="text-xs text-stone-500 italic">Belum ada catatan pembayaran. Pembayaran yang dicatat Admin akan muncul di sini.</div>';
+        return;
+      }
+      list.innerHTML = logs.map(log => `
+        <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+          <div>
+            <div class="font-bold text-stone-900">${escapeHtml(log.period || '-')}</div>
+            <div class="text-stone-500 text-[11px]">Lunas: ${formatDateID(log.paidDate)}${log.method ? ' • ' + escapeHtml(log.method) : ''}</div>
+            ${log.note ? `<div class="text-[11px] text-stone-600">${escapeHtml(log.note)}</div>` : ''}
+          </div>
+          <div class="text-right">
+            <div class="font-mono-code font-extrabold text-stone-900">${formatRupiah(log.amount)}</div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Lunas</span>
+          </div>
+        </div>
+      `).join('');
     }
 
     function getNowTimeStr() {
@@ -2290,7 +2549,8 @@
         document.getElementById('billingRoomName').textContent = currentSession.roomName;
         document.getElementById('billingTenantName').textContent = currentSession.fullName;
         document.getElementById('billingAmount').textContent = currentSession.billingAmount || 'Rp 650.000';
-        document.getElementById('billingDueDate').textContent = currentSession.billingDue || '10 Desember 2026';
+        ensureTenantFinanceFields(currentSession);
+        document.getElementById('billingDueDate').textContent = formatDateID(currentSession.nextDueDate);
         document.getElementById('wifiUserDisplay').textContent = currentSession.username;
         document.getElementById('wifiPassDisplay').textContent = currentSession.wifiPassword || 'kos#' + currentSession.pin;
       } else {
@@ -2308,6 +2568,8 @@
       renderMircUserList();
       renderNearbyLocations();
       renderAccountCard();
+      renderPaymentBar();
+      renderPaymentLogs();
     }
 
     function copyWifiCredential(type) {
@@ -2339,6 +2601,8 @@
     function logoutPortal() {
       stopKosRadioPlayback();
       currentSession = null;
+      memberPwaIntent = false;
+      setMemberPwaInviteActive(false);
       document.getElementById('portalAuthContainer').classList.remove('hidden');
       document.getElementById('portalWorkspaceContainer').classList.add('hidden');
       switchMainTab('about');
@@ -2443,7 +2707,11 @@
         }
       });
       if (viewName === 'radar') renderNearbyLocations();
-      if (viewName === 'billing') renderAccountCard();
+      if (viewName === 'billing') {
+        renderAccountCard();
+        renderPaymentLogs();
+      }
+      renderPaymentBar();
     }
 
     function confirmBillingViaChat() {
@@ -2860,20 +3128,27 @@
       const tenantCountEl = document.getElementById('adminActiveTenantCount');
       if (tenantCountEl) tenantCountEl.textContent = `${registeredTenants.length} Aktif`;
       if (tenantsEl) {
-        tenantsEl.innerHTML = registeredTenants.map(t => `
+        tenantsEl.innerHTML = registeredTenants.map(t => {
+          ensureTenantFinanceFields(t);
+          return `
           <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs flex flex-wrap items-center justify-between gap-2">
             <div>
               <div class="font-extrabold text-stone-900">${escapeHtml(t.fullName)} <span class="text-emerald-800 font-mono-code">(${escapeHtml(t.roomName)})</span></div>
               <div class="text-stone-600">HP: ${escapeHtml(t.phone)} • Darurat: ${escapeHtml(t.emergencyPhone)}</div>
+              <div class="text-stone-600">Jatuh tempo: <strong>${formatDateID(t.nextDueDate)}</strong> • ${tenantDueBadge(t)}</div>
+              <div class="text-stone-600">Notifikasi Member: <strong class="${t.pwaMemberSubscribed ? 'text-emerald-800' : 'text-stone-500'}">${t.pwaMemberSubscribed ? '🔔 Aktif' : '🔕 Belum Aktif'}</strong> • Log: <strong>${t.paymentLogs.length}</strong></div>
               <div class="text-blue-900 font-mono-code text-[11px] mt-0.5">📶 Wi-Fi User: <strong>${escapeHtml(t.username)}</strong> | Pass: <strong>${escapeHtml(t.wifiPassword || '-')}</strong> (Max 2)</div>
             </div>
             <div class="flex flex-wrap items-center gap-1.5">
+              <button type="button" onclick="recordTenantPayment('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✅ Catat Lunas (+1 Bulan)</button>
+              <button type="button" onclick="openPaymentLogsModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold">🧾 Log Pembayaran</button>
               <button type="button" onclick="regenerateTenantWifiPass('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold" title="Acak Ulang Password Wi-Fi Kamar">🔑 Reset Pass Wi-Fi</button>
               <button type="button" onclick="viewTenantKtp('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold">🪪 KTP & Bio</button>
               <button type="button" onclick="openCheckoutModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-900 font-bold">Check-Out</button>
             </div>
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
 
       // 8. Alumni Archive & Arrears
@@ -3085,6 +3360,96 @@
       renderGuestbook();
       renderAdminPanel();
       showToast('Entri buku tamu dihapus.', 'info');
+    }
+
+    function tenantDueBadge(tenant) {
+      const days = getTenantDueDays(tenant);
+      if (days === null) return '<span class="font-bold text-stone-500">-</span>';
+      if (days < 0) return `<span class="font-bold text-red-700">Terlambat ${Math.abs(days)} hari</span>`;
+      if (days <= 5) return `<span class="font-bold text-amber-700">${days} hari lagi</span>`;
+      return `<span class="font-bold text-emerald-700">${days} hari lagi</span>`;
+    }
+
+    function recordTenantPayment(username) {
+      const tenant = registeredTenants.find(t => t.username === username);
+      if (!tenant) return;
+      ensureTenantFinanceFields(tenant);
+
+      const period = formatPeriodID(tenant.nextDueDate);
+      const amount = parseRupiahNumber(tenant.billingAmount);
+      tenant.paymentLogs.unshift({
+        id: 'PAY' + Date.now(),
+        period,
+        amount,
+        paidDate: toISODateLocal(new Date()),
+        method: 'Admin (Tunai/Transfer)',
+        note: ''
+      });
+      tenant.nextDueDate = addMonthsISO(tenant.nextDueDate, 1);
+
+      if (currentSession && currentSession.username === tenant.username) {
+        currentSession.nextDueDate = tenant.nextDueDate;
+        currentSession.paymentLogs = tenant.paymentLogs;
+        renderPaymentBar();
+        renderPaymentLogs();
+      }
+
+      renderAdminPanel();
+      queueStateSave();
+      showToast(`Pembayaran ${tenant.fullName} (${period}) dicatat. Jatuh tempo berikutnya: ${formatDateID(tenant.nextDueDate)}.`, 'success');
+    }
+
+    let paymentLogsActiveUser = null;
+
+    function renderPaymentLogsModal() {
+      const tenant = registeredTenants.find(t => t.username === paymentLogsActiveUser);
+      const titleEl = document.getElementById('paymentLogsModalTitle');
+      const body = document.getElementById('paymentLogsModalBody');
+      if (!tenant || !body) return;
+      ensureTenantFinanceFields(tenant);
+      if (titleEl) titleEl.textContent = `Log Pembayaran: ${tenant.fullName}`;
+
+      if (!tenant.paymentLogs.length) {
+        body.innerHTML = '<div class="text-xs text-stone-500 italic">Belum ada log pembayaran untuk penghuni ini.</div>';
+        return;
+      }
+      body.innerHTML = tenant.paymentLogs.map(log => `
+        <div class="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+          <div>
+            <div class="font-bold text-stone-900">${escapeHtml(log.period || '-')}</div>
+            <div class="text-stone-500 text-[11px]">${formatRupiah(log.amount)} • Lunas ${formatDateID(log.paidDate)}</div>
+            ${log.method ? `<div class="text-[11px] text-stone-600">${escapeHtml(log.method)}</div>` : ''}
+            ${log.note ? `<div class="text-[11px] text-stone-600">${escapeHtml(log.note)}</div>` : ''}
+          </div>
+          <button type="button" onclick="deletePaymentLog('${escapeHtml(log.id)}')" class="px-2 py-1 rounded bg-red-100 hover:bg-red-200 text-red-800 font-bold shrink-0">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function openPaymentLogsModal(username) {
+      paymentLogsActiveUser = username;
+      renderPaymentLogsModal();
+      document.getElementById('paymentLogsModal').classList.remove('hidden');
+    }
+
+    function closePaymentLogsModal() {
+      const modal = document.getElementById('paymentLogsModal');
+      if (modal) modal.classList.add('hidden');
+      paymentLogsActiveUser = null;
+    }
+
+    function deletePaymentLog(logId) {
+      const tenant = registeredTenants.find(t => t.username === paymentLogsActiveUser);
+      if (!tenant) return;
+      tenant.paymentLogs = (tenant.paymentLogs || []).filter(log => log.id !== logId);
+      if (currentSession && currentSession.username === tenant.username) {
+        currentSession.paymentLogs = tenant.paymentLogs;
+        renderPaymentLogs();
+      }
+      renderPaymentLogsModal();
+      renderAdminPanel();
+      queueStateSave();
+      showToast('Log pembayaran dihapus.', 'info');
     }
 
     function viewTenantKtp(username) {
@@ -3408,7 +3773,10 @@
         joinDate: 'Hari Ini',
         billingStatus: 'LUNAS',
         billingAmount: pricing.formattedActive,
-        billingDue: '21 Desember 2026'
+        billingDue: '21 Desember 2026',
+        nextDueDate: addDaysISO(toISODateLocal(new Date()), 30),
+        pwaMemberSubscribed: memberPwaIntent,
+        paymentLogs: []
       };
 
       registeredTenants.push(newTenant);
@@ -3423,6 +3791,8 @@
 
       currentSession = { role: 'tenant', ...newTenant, nickname: '+' + newTenant.nickname };
       this.reset();
+      memberPwaIntent = false;
+      setMemberPwaInviteActive(false);
       pendingKtpPhotoWebP = null;
       document.getElementById('regKtpPreviewBox').classList.add('hidden');
       renderRooms();
@@ -3915,6 +4285,10 @@
         const clk = document.getElementById('mircClock');
         if (clk) clk.textContent = getNowTimeStr();
       }, 1000);
+
+      setInterval(() => {
+        if (currentSession && currentSession.role === 'tenant') renderPaymentBar();
+      }, 60000);
     });
   </script>
 </body>
