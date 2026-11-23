@@ -500,7 +500,7 @@
               </div>
 
               <button type="submit" class="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm transition shadow-md">
-                ✅ Daftar Sekarang & Aktifvasi
+                ✅ Daftar Sekarang & Aktivasi
               </button>
             </form>
           </div>
@@ -581,7 +581,7 @@
             </div>
 
             <div class="flex-1 flex overflow-hidden relative">
-              <div id="mircMessagesBox" class="win98-inset flex-1 m-1 mr-0.5 p-2.5 overflow-y-auto mirc-mono select-text break-words space-y-1"></div>
+              <div id="mircMessagesBox" class="win98-inset flex-1 m-1 mr-0.5 p-2.5 overflow-y-auto mirc-mono select-text break-words"></div>
 
               <div id="mircUserDrawer" class="hidden md:flex flex-col w-52 win98-inset m-1 ml-0.5 bg-white shrink-0 z-20 md:static absolute right-0 top-0 bottom-0 shadow-xl md:shadow-none">
                 <div class="bg-[#dfdfdf] border-b border-gray-400 px-2 py-1 text-xs font-bold flex items-center justify-between">
@@ -1835,7 +1835,7 @@
     }
 
     function mircMessageKey(message) {
-      return `${message.type}|${message.time}|${message.nick || ''}|${message.text}`;
+      return `${message.type}|${Number.isFinite(message.ts) ? message.ts : message.time}|${message.time}|${message.nick || ''}|${message.text}`;
     }
 
     function mergeMircChannels(remoteChannels) {
@@ -1845,18 +1845,20 @@
       keys.forEach(channel => {
         const local = mircChannels[channel] || { topic: '', messages: [] };
         const remote = remoteChannels[channel] || { topic: '', messages: [] };
-        const localKeys = new Set((local.messages || []).map(mircMessageKey));
+        const localMessages = Array.isArray(local.messages) ? local.messages : [];
+        const remoteMessages = Array.isArray(remote.messages) ? remote.messages : [];
+        const localKeys = new Set(localMessages.map(mircMessageKey));
         const seen = new Set();
         const messages = [];
-        (local.messages || []).concat(remote.messages || []).forEach(message => {
+        remoteMessages.concat(localMessages).forEach(message => {
+          if (!message || typeof message !== 'object') return;
           const key = mircMessageKey(message);
           if (seen.has(key)) return;
           seen.add(key);
           messages.push(message);
           if (!localKeys.has(key)) addedCounts[channel] = (addedCounts[channel] || 0) + 1;
         });
-        messages.sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
-        merged[channel] = { topic: remote.topic || local.topic || '', messages };
+        merged[channel] = { topic: remote.topic || local.topic || '', messages: sortMircMessages(messages) };
       });
       return { merged, addedCounts };
     }
@@ -2031,7 +2033,10 @@
         if (!mircChannels[key]) mircChannels[key] = { topic: defaultTopic, messages: [] };
         if (!mircChannels[key].topic) mircChannels[key].topic = defaultTopic;
         if (!Array.isArray(mircChannels[key].messages) || mircChannels[key].messages.length === 0) {
-          mircChannels[key].messages = messages;
+          mircChannels[key].messages = messages.map((message, index) => mircStamp({
+            ...message,
+            ts: Date.now() + index
+          }));
         }
       };
       seed('#umum', 'Obrolan santai seluruh penghuni kos Secang. Ketik /help untuk daftar perintah.', [
@@ -2332,6 +2337,19 @@
 
     function getNowTimeStr() {
       return new Date().toTimeString().slice(0, 8);
+    }
+
+    function mircStamp(message) {
+      if (!message || typeof message !== 'object') return message;
+      if (!Number.isFinite(message.ts)) message.ts = Date.now();
+      return message;
+    }
+
+    function pushMircMessage(channel, message) {
+      if (!mircChannels[channel]) mircChannels[channel] = { topic: '', messages: [] };
+      if (!Array.isArray(mircChannels[channel].messages)) mircChannels[channel].messages = [];
+      mircChannels[channel].messages.push(mircStamp(message));
+      return mircChannels[channel].messages;
     }
 
     function showToast(msg, type = 'info') {
@@ -3089,7 +3107,7 @@
       activeMircTab = pmTarget;
       hiddenMircTabs.delete(pmTarget);
       saveHiddenMircTabs();
-      mircChannels[pmTarget].messages.push({
+      pushMircMessage(pmTarget, {
         type: 'chat',
         time: getNowTimeStr(),
         nick: currentSession.nickname,
@@ -3154,22 +3172,39 @@
       renderMircMessages();
     }
 
+    function mircSortKey(message) {
+      if (Number.isFinite(message.ts)) return message.ts;
+      return Date.parse(`1970-01-01T${message.time || '00:00:00'}`);
+    }
+
+    function sortMircMessages(messages) {
+      return (Array.isArray(messages) ? messages : [])
+        .map((message, index) => ({ message, index, key: mircSortKey(message) }))
+        .sort((a, b) => (a.key - b.key) || (a.index - b.index))
+        .map(entry => entry.message);
+    }
+
     function renderMircMessages() {
       const box = document.getElementById('mircMessagesBox');
       if (!box) return;
       const chObj = mircChannels[activeMircTab];
       if (!chObj) return;
 
-      box.innerHTML = chObj.messages.map(m => {
+      const items = sortMircMessages(chObj.messages).map(m => {
+        const time = `<span class="text-gray-400">[${escapeHtml(m.time)}]</span>`;
         if (m.type === 'system') {
-          return `<div class="text-emerald-800"><span class="text-gray-400">[${escapeHtml(m.time)}]</span> ${escapeHtml(m.text)}</div>`;
+          return `<div class="leading-snug py-0.5 text-emerald-800">${time} ${escapeHtml(m.text)}</div>`;
         }
         if (m.type === 'action') {
-          return `<div class="text-purple-800 font-semibold"><span class="text-gray-400 font-normal">[${escapeHtml(m.time)}]</span> * ${escapeHtml(m.nick)} ${escapeHtml(m.text)}</div>`;
+          return `<div class="leading-snug py-0.5 text-purple-800 font-semibold">${time} * ${escapeHtml(m.nick)} ${escapeHtml(m.text)}</div>`;
         }
         const nickColor = m.role === 'admin' ? 'text-red-700 font-bold' : 'text-blue-900 font-bold';
-        return `<div><span class="text-gray-400">[${escapeHtml(m.time)}]</span> &lt;<span class="${nickColor}">${escapeHtml(m.nick)}</span>&gt; <span class="text-black">${escapeHtml(m.text)}</span></div>`;
-      }).join('');
+        return `<div class="leading-snug py-0.5"><span class="whitespace-nowrap">${time} &lt;<span class="${nickColor}">${escapeHtml(m.nick)}</span>&gt;</span> <span class="text-black">${escapeHtml(m.text)}</span></div>`;
+      });
+
+      // Chat ditumpuk dari bawah: spacer mendorong pesan ke dasar kotak,
+      // sehingga baris lama naik saat pesan baru bertambah.
+      box.innerHTML = `<div class="min-h-full flex flex-col justify-end">${items.join('')}</div>`;
       box.scrollTop = box.scrollHeight;
     }
 
@@ -3227,14 +3262,14 @@
         return;
       }
       if (raw === '/help') {
-        chObj.messages.push({ type: 'system', time: t, text: '*** Perintah IRC: /me [aksi], /nick [namaBaru], /msg [target] [pesan], /clear' });
+        pushMircMessage(activeMircTab, { type: 'system', time: t, text: '*** Perintah IRC: /me [aksi], /nick [namaBaru], /msg [target] [pesan], /clear' });
         renderMircMessages();
         return;
       }
       if (raw.startsWith('/me ')) {
         const actionText = raw.slice(4).trim();
         if (actionText) {
-          chObj.messages.push({ type: 'action', time: t, nick: currentSession.nickname, text: actionText });
+          pushMircMessage(activeMircTab, { type: 'action', time: t, nick: currentSession.nickname, text: actionText });
           renderMircMessages();
           playMircBeep();
         }
@@ -3248,7 +3283,7 @@
           document.getElementById('mircNickHeader').textContent = currentSession.nickname;
           document.getElementById('mircInputBadge').textContent = currentSession.nickname;
           document.getElementById('internalUserBadge').textContent = `${currentSession.nickname} • Online`;
-          chObj.messages.push({ type: 'system', time: t, text: `*** ${oldNick} berganti nama menjadi ${currentSession.nickname}` });
+          pushMircMessage(activeMircTab, { type: 'system', time: t, text: `*** ${oldNick} berganti nama menjadi ${currentSession.nickname}` });
           renderMircMessages();
           renderAuthHeaderSlot();
         }
@@ -3260,14 +3295,14 @@
         const msgText = parts.join(' ');
         if (target && msgText) {
           openPrivateChatWith(target);
-          mircChannels[target].messages.push({ type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: msgText });
+          pushMircMessage(target, { type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: msgText });
           renderMircMessages();
           playMircBeep();
         }
         return;
       }
 
-      chObj.messages.push({ type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: raw });
+      pushMircMessage(activeMircTab, { type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: raw });
       renderMircMessages();
       playMircBeep();
     }
@@ -4481,10 +4516,16 @@
       roomObj.status = 'occupied';
       roomObj.tenant = fullName;
 
-      mircChannels['#umum'].messages.push({
+      const joinTime = getNowTimeStr();
+      pushMircMessage('#umum', {
         type: 'system',
-        time: getNowTimeStr(),
-        text: `*** Selamat bergabung +${newTenant.nickname} (${newTenant.fullName}) di ${newTenant.roomName}!`
+        time: joinTime,
+        text: `*** ${newTenant.nickname} (${newTenant.fullName}) telah bergabung di ${newTenant.roomName}.`
+      });
+      pushMircMessage('#umum', {
+        type: 'system',
+        time: joinTime,
+        text: `*** Selamat datang +${newTenant.nickname}! Perkenalkan diri Anda dan baca topic #umum. Ketik /help untuk daftar perintah.`
       });
 
       currentSession = { role: 'tenant', ...newTenant, nickname: '+' + newTenant.nickname };
@@ -4510,8 +4551,20 @@
       switchInternalSubView('billing');
       renderAccountCard();
       queueStateSave();
+
+      // Notifikasi member: bunyi + tab berkedip saat welcome mIRC32 masuk.
+      unreadMircTabs.add('#umum');
+      renderMircChannels();
+      renderMircUserList();
       playMircBeep();
       showToast(`Akun aktif! Username: ${username} • PIN standar: 1234`, 'success');
+      if (memberNotify.permission === 'granted' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('Selamat datang di mIRC32 Kos', {
+            body: `Hai ${newTenant.fullName}! Kamu bergabung di ${newTenant.roomName}. Cek tab mIRC32 untuk pesan selamat datang.`
+          });
+        } catch (err) { /* notifikasi opsional */ }
+      }
     });
 
     // Ubah PIN dari kartu akun (Tagihan & Wi-Fi)
@@ -4631,7 +4684,7 @@
       const announce = document.getElementById('adminRulesAnnounceCheck');
       if (announce && announce.checked) {
         if (!mircChannels['#pengumuman']) mircChannels['#pengumuman'] = { topic: 'Pengumuman internal kos', messages: [] };
-        mircChannels['#pengumuman'].messages.push({
+        pushMircMessage('#pengumuman', {
           type: 'system',
           time: getNowTimeStr(),
           text: `*** Tata tertib kos diperbarui oleh Admin (${kosRulesConfig.items.length} poin). Mohon dibaca kembali di menu Tata Tertib.`
@@ -4729,7 +4782,7 @@
       tenant.roomName = targetRoom.name;
       tenant.nickname = `Kamar${newNum}_${baseName}`;
 
-      mircChannels['#umum'].messages.push({
+      pushMircMessage('#umum', {
         type: 'system',
         time: getNowTimeStr(),
         text: `*** Mutasi Kamar: ${tenant.fullName} pindah dari ${oldRoomName} ke ${targetRoom.name} (+${tenant.nickname}).`
@@ -4784,7 +4837,7 @@
       });
 
       if (document.getElementById('adminPromoNotifyCheck').checked) {
-        mircChannels['#pengumuman'].messages.push({
+        pushMircMessage('#pengumuman', {
           type: 'chat',
           time: getNowTimeStr(),
           nick: '@AdminKos',
@@ -4942,7 +4995,7 @@
       }
 
       registeredTenants.splice(idx, 1);
-      mircChannels['#umum'].messages.push({
+      pushMircMessage('#umum', {
         type: 'system',
         time: getNowTimeStr(),
         text: `*** [INFO] +${tenant.nickname} (${tenant.roomName}) telah check-out. Terima kasih!`
@@ -5046,7 +5099,7 @@
       const newTopic = document.getElementById('editMircChannelTopicInput').value.trim();
       if (!mircChannels[ch]) return;
       mircChannels[ch].topic = newTopic;
-      mircChannels[ch].messages.push({
+      pushMircMessage(ch, {
         type: 'system',
         time: getNowTimeStr(),
         text: `*** @AdminKos mengubah topic menjadi: ${newTopic}`
