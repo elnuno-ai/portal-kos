@@ -722,14 +722,19 @@
           <span class="text-xs uppercase tracking-wider text-amber-300 font-bold">Pusat Kendali Pengelola Kos & Usaha</span>
           <h2 class="text-2xl font-extrabold">Panel Administrasi Terpadu</h2>
         </div>
-        <button onclick="logoutPortal()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold border border-white/20">
-          Keluar Mode Admin
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="resetAdminCardOrder()" class="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 text-xs font-bold border border-amber-400/40">
+            ↺ Reset Susunan
+          </button>
+          <button onclick="logoutPortal()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold border border-white/20">
+            Keluar Mode Admin
+          </button>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="adminCardsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 0. IDENTITAS BRAND, LOGO, TITLE, SUBTITLE & FOOTER -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+        <div data-admin-card="brand" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h3 class="font-extrabold text-lg text-stone-900">🎨 Pengaturan Identitas Website, Logo & Footer</h3>
@@ -782,7 +787,7 @@
         </div>
 
         <!-- 1. KELOLA RUNNING TEXT HALAMAN DEPAN -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="running-text" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <h3 class="font-extrabold text-lg text-stone-900">📢 Kelola Running Text Halaman Depan</h3>
           <form id="adminRunningTextForm" class="space-y-3 text-sm">
             <div>
@@ -822,7 +827,7 @@
         </div>
 
         <!-- 2. KELOLA UNIT KAMAR (TAMBAH KAMAR & STATUS RENOVASI) -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="rooms" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <h3 class="font-extrabold text-lg text-stone-900">🏠 Kelola Unit Kamar & Status Renovasi</h3>
 
           <form id="adminCatalogSettingsForm" class="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2.5 text-xs">
@@ -860,7 +865,7 @@
         </div>
 
         <!-- 3. MUTASI / PINDAH KAMAR PENGHUNI -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="move-room" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <h3 class="font-extrabold text-lg text-stone-900">🔄 Mutasi / Pindah Kamar Penghuni</h3>
           <p class="text-xs text-stone-600">Pindahkan penghuni aktif ke kamar kosong lain tanpa registrasi ulang; nickname mIRC32 otomatis diperbarui.</p>
           <form id="adminMoveRoomForm" class="space-y-3 text-sm">
@@ -881,7 +886,7 @@
         </div>
 
         <!-- 5. TERBITKAN PROMO & TITIP JUAL (GAMBAR 1:1 IG) -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="promo" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <h3 class="font-extrabold text-lg text-stone-900">🎁 Terbitkan Promo & Titip Jual (IG 1:1)</h3>
           <form id="adminAddPromoForm" class="space-y-3 text-sm">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -936,7 +941,7 @@
         </div>
 
         <!-- 5B. KELOLA MENU PONDHOK DHAHAR SEDHAH AYU (EDIT GAMBAR, KETERANGAN & HARGA CORET) -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="sedhah-menu" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-lg text-stone-900">🍛 Kelola Menu "Sedhah Ayu" & Harga Coret</h3>
             <span id="adminSedhahCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">6 Menu</span>
@@ -946,7 +951,7 @@
         </div>
 
         <!-- 6. MODERASI BUKU TAMU -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="guestbook" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-lg text-stone-900">📖 Antrean Moderasi Buku Tamu</h3>
             <span id="adminPendingCountLabel" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">1 Menunggu</span>
@@ -955,7 +960,7 @@
         </div>
 
         <!-- 7. DAFTAR PENGHUNI AKTIF -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="tenants" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-lg text-stone-900">👥 Penghuni Kos Aktif & KTP</h3>
             <span id="adminActiveTenantCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">3 Aktif</span>
@@ -964,7 +969,7 @@
         </div>
 
         <!-- 8. ARSIP ALUMNI & CATATAN TUNGGAKAN -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="alumni" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-lg text-stone-900">🗂️ Arsip Alumni & Catatan Tunggakan</h3>
             <span id="adminAlumniCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-stone-200 text-stone-700">0 Arsip</span>
@@ -973,7 +978,7 @@
         </div>
 
         <!-- 9. MANAJEMEN NAMA TAB & KETERANGAN (ABOUT US, INFO KOS, SEDHAH AYU, PROMO, BUKU TAMU, RADAR & TAB KUSTOM) -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="tabs-nav" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-lg text-stone-900">🗂️ Manajemen Tab Navigasi & Keterangan</h3>
             <span id="adminTabsCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">7 Bagian</span>
@@ -996,7 +1001,7 @@
         </div>
 
         <!-- 10. MANAJEMEN RADAR LOKASI SEKITAR KOS (TAMBAH, EDIT, HAPUS) -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
+        <div data-admin-card="radar" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-lg text-stone-900">📍 Manajemen Radar Lokasi Sekitar Kos</h3>
             <span id="adminRadarCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">6 Lokasi</span>
@@ -1023,7 +1028,7 @@
         </div>
 
         <!-- 11. MANAJEMEN CHANNEL & TOPIC mIRC32 (#) -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+        <div data-admin-card="mirc-channels" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
           <div class="flex items-center justify-between">
             <div>
               <h3 class="font-extrabold text-lg text-stone-900">💬 Manajemen Channel & Topic mIRC32 (#)</h3>
@@ -1052,7 +1057,7 @@
         </div>
 
         <!-- 12. MANAJEMEN CHANNEL RADIO ONLINE KOS -->
-        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+        <div data-admin-card="radio" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
           <div class="flex items-center justify-between">
             <div>
               <h3 class="font-extrabold text-lg text-stone-900">📻 Manajemen Channel Radio Online Kos</h3>
@@ -1478,6 +1483,43 @@
       window.PORTAL_DATA.catalogConfig || {}
     );
 
+    // Urutan kartu Panel Admin (bisa disusun ulang)
+    const DEFAULT_ADMIN_CARD_ORDER = ['brand', 'running-text', 'rooms', 'move-room', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
+    const ADMIN_CARD_ORDER_STORAGE_KEY = 'adminCardOrder';
+
+    function sanitizeAdminCardOrder(order) {
+      const seen = new Set();
+      const result = [];
+      (Array.isArray(order) ? order : []).forEach(id => {
+        if (DEFAULT_ADMIN_CARD_ORDER.includes(id) && !seen.has(id)) {
+          seen.add(id);
+          result.push(id);
+        }
+      });
+      DEFAULT_ADMIN_CARD_ORDER.forEach(id => {
+        if (!seen.has(id)) result.push(id);
+      });
+      return result;
+    }
+
+    function loadAdminCardOrderFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(ADMIN_CARD_ORDER_STORAGE_KEY);
+        if (!raw) return [...DEFAULT_ADMIN_CARD_ORDER];
+        return sanitizeAdminCardOrder(JSON.parse(raw));
+      } catch (err) {
+        return [...DEFAULT_ADMIN_CARD_ORDER];
+      }
+    }
+
+    function saveAdminCardOrderToLocalStorage() {
+      try {
+        localStorage.setItem(ADMIN_CARD_ORDER_STORAGE_KEY, JSON.stringify(adminCardOrder));
+      } catch (err) { /* localStorage tidak tersedia */ }
+    }
+
+    let adminCardOrder = loadAdminCardOrderFromLocalStorage();
+
     // ==================== 1B. PERSISTENSI STATE PORTAL ====================
     let stateEndpoint = null;
     let stateSaveTimer = null;
@@ -1497,6 +1539,7 @@
         tickerConfig,
         tabConfigs,
         catalogConfig,
+        adminCardOrder,
         rooms,
         nearbyLocations,
         registeredTenants,
@@ -1538,6 +1581,10 @@
       if (state.catalogConfig && typeof state.catalogConfig === 'object') {
         catalogConfig.showOnlyAvailable = state.catalogConfig.showOnlyAvailable !== false;
         catalogConfig.whatsappNumber = normalizeWhatsappNumber(state.catalogConfig.whatsappNumber);
+      }
+      if (Array.isArray(state.adminCardOrder)) {
+        adminCardOrder = sanitizeAdminCardOrder(state.adminCardOrder);
+        saveAdminCardOrderToLocalStorage();
       }
       if (Array.isArray(state.rooms)) rooms = state.rooms;
       if (Array.isArray(state.nearbyLocations)) nearbyLocations = state.nearbyLocations;
@@ -2554,6 +2601,120 @@
       chObj.messages.push({ type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: raw });
       renderMircMessages();
       playMircBeep();
+    }
+
+    // ==================== 6B. SUSUN ULANG KARTU PANEL ADMIN ====================
+    function applyAdminCardOrder() {
+      const container = document.getElementById('adminCardsGrid');
+      if (!container) return;
+      const cards = [...container.querySelectorAll(':scope > [data-admin-card]')];
+      const byId = new Map(cards.map(card => [card.dataset.adminCard, card]));
+      adminCardOrder.forEach(id => {
+        const card = byId.get(id);
+        if (card) {
+          container.appendChild(card);
+          byId.delete(id);
+        }
+      });
+      byId.forEach(card => container.appendChild(card));
+    }
+
+    function updateAdminCardControlsState() {
+      const container = document.getElementById('adminCardsGrid');
+      if (!container) return;
+      const cards = [...container.querySelectorAll(':scope > [data-admin-card]')];
+      cards.forEach((card, index) => {
+        const up = card.querySelector('[data-admin-move="-1"]');
+        const down = card.querySelector('[data-admin-move="1"]');
+        if (up) {
+          up.disabled = index === 0;
+          up.classList.toggle('opacity-40', index === 0);
+          up.classList.toggle('cursor-not-allowed', index === 0);
+        }
+        if (down) {
+          down.disabled = index === cards.length - 1;
+          down.classList.toggle('opacity-40', index === cards.length - 1);
+          down.classList.toggle('cursor-not-allowed', index === cards.length - 1);
+        }
+      });
+    }
+
+    function setAdminCardOrder(order) {
+      adminCardOrder = sanitizeAdminCardOrder(order);
+      saveAdminCardOrderToLocalStorage();
+      applyAdminCardOrder();
+      updateAdminCardControlsState();
+      queueStateSave();
+    }
+
+    function moveAdminCard(id, delta) {
+      const index = adminCardOrder.indexOf(id);
+      const target = index + delta;
+      if (index === -1 || target < 0 || target >= adminCardOrder.length) return;
+      const order = [...adminCardOrder];
+      [order[index], order[target]] = [order[target], order[index]];
+      setAdminCardOrder(order);
+    }
+
+    function resetAdminCardOrder() {
+      setAdminCardOrder([...DEFAULT_ADMIN_CARD_ORDER]);
+      showToast('Susunan kartu panel admin dikembalikan ke bawaan.', 'info');
+    }
+
+    function reorderAdminCardBefore(sourceId, targetId) {
+      if (!sourceId || sourceId === targetId) return;
+      const order = adminCardOrder.filter(id => id !== sourceId);
+      const targetIndex = order.indexOf(targetId);
+      if (targetIndex === -1) order.push(sourceId);
+      else order.splice(targetIndex, 0, sourceId);
+      setAdminCardOrder(order);
+    }
+
+    function initAdminCardControls() {
+      const container = document.getElementById('adminCardsGrid');
+      if (!container) return;
+      container.querySelectorAll(':scope > [data-admin-card]').forEach(card => {
+        if (card.querySelector('.admin-card-controls')) return;
+        const id = card.dataset.adminCard;
+        const bar = document.createElement('div');
+        bar.className = 'admin-card-controls flex items-center justify-between gap-2 pb-1 border-b border-stone-100';
+        bar.innerHTML = `
+          <span class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Susun Kartu</span>
+          <span class="flex items-center gap-1">
+            <button type="button" data-admin-move="-1" onclick="moveAdminCard('${id}', -1)" title="Naik" class="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 text-xs font-bold">▲</button>
+            <button type="button" data-admin-move="1" onclick="moveAdminCard('${id}', 1)" title="Turun" class="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 text-xs font-bold">▼</button>
+            <span draggable="true" data-drag-handle="${id}" title="Tarik untuk memindahkan kartu" class="cursor-grab active:cursor-grabbing w-7 h-7 rounded-lg bg-stone-800 text-white flex items-center justify-center text-xs select-none">⋮⋮</span>
+          </span>
+        `;
+        card.insertBefore(bar, card.firstChild);
+      });
+    }
+
+    function initAdminCardDragAndDrop() {
+      const container = document.getElementById('adminCardsGrid');
+      if (!container) return;
+      container.querySelectorAll(':scope > [data-admin-card]').forEach(card => {
+        const handle = card.querySelector('[data-drag-handle]');
+        if (handle) {
+          handle.addEventListener('dragstart', (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', card.dataset.adminCard);
+            card.classList.add('opacity-60', 'ring-2', 'ring-amber-500');
+          });
+          handle.addEventListener('dragend', () => {
+            card.classList.remove('opacity-60', 'ring-2', 'ring-amber-500');
+          });
+        }
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        });
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const sourceId = e.dataTransfer.getData('text/plain');
+          reorderAdminCardBefore(sourceId, card.dataset.adminCard);
+        });
+      });
     }
 
     // ==================== 7. ADMIN PANEL RENDER & MODALS ====================
@@ -3726,6 +3887,10 @@
       renderGuestbook();
       renderNearbyLocations();
       renderRadioStationDropdown();
+      initAdminCardControls();
+      applyAdminCardOrder();
+      updateAdminCardControlsState();
+      initAdminCardDragAndDrop();
 
       setInterval(() => {
         const clk = document.getElementById('mircClock');
