@@ -66,5 +66,9 @@ return [
         ['id' => 'RAD2', 'name' => 'Lush • Santai Sore & Gamelan Chill', 'genre' => 'Chillout', 'url' => 'https://ice1.somafm.com/lush-128-mp3'],
         ['id' => 'RAD3', 'name' => 'Illinois Street Lounge • Nuansa Jadoel', 'genre' => 'Retro Lounge', 'url' => 'https://ice1.somafm.com/illstreet-128-mp3'],
         ['id' => 'RAD4', 'name' => 'DEF CON Radio • Fokus Coding & Tugas', 'genre' => 'Electronic / Focus', 'url' => 'https://ice1.somafm.com/defcon-128-mp3'],
+        ['id' => 'RAD5', 'name' => 'Prambors FM Jakarta • Pop Indonesia', 'genre' => 'Pop Indonesia', 'url' => 'https://stream.rcs.revma.com/h77wwp48kxcwv'],
+        ['id' => 'RAD6', 'name' => 'Delta FM Jakarta • Hits Santai', 'genre' => 'Pop / Hits', 'url' => 'https://stream.rcs.revma.com/k02rmq48kxcwv'],
+        ['id' => 'RAD7', 'name' => 'RRI Pro 3 KBRN • Berita & Musik', 'genre' => 'Berita / Nasional', 'url' => 'https://stream-node0.rri.co.id/streaming/14/9014/kbrn.mp3'],
+        ['id' => 'RAD8', 'name' => 'SB FM • Tembang Kenangan', 'genre' => 'Tembang Kenangan', 'url' => 'https://stream.zeno.fm/d16n50mkzhhvv'],
     ],
 ];

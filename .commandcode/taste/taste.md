@@ -1,3 +1,3 @@
 - Prefers absolute (or dynamic BASE_URL) paths for navbar/sidebar navigation links instead of relative paths. Confidence: 0.8
 - Writes in Indonesian (casual, first person "aku") and expects replies in Indonesian. Confidence: 0.7
-- Expects finished work committed and pushed straight to origin/main (no PR/branch dance), with a short Indonesian commit message. Confidence: 0.75
+- Expects finished work committed and pushed straight to origin/main (no PR/branch dance), with a short Indonesian commit message; asks for this explicitly at the end of feature requests. Confidence: 0.8

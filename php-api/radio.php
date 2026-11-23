@@ -10,6 +10,18 @@ function respond(array $payload, int $status = 200): void {
     exit;
 }
 
+function url_looks_like_html(string $url): bool {
+    $headers = @get_headers($url, true);
+    if (!$headers) return false;
+    foreach ($headers as $key => $value) {
+        if (stripos((string)$key, 'Content-Type') !== false) {
+            $contentType = is_array($value) ? (string)end($value) : (string)$value;
+            return stripos($contentType, 'text/html') !== false || stripos($contentType, 'application/xhtml') !== false;
+        }
+    }
+    return false;
+}
+
 function all_stations(PDO $pdo): array {
     $rows = [];
     foreach ($pdo->query("SELECT id,name,genre,url,is_live,live_started_at FROM radio_stations ORDER BY sort_order, id") as $s) {
@@ -40,11 +52,14 @@ try {
 
     switch ($action) {
         case 'add': {
-            if ($count >= 5) respond(['ok' => false, 'error' => 'Maksimal 5 stasiun radio.'], 422);
+            if ($count >= 10) respond(['ok' => false, 'error' => 'Maksimal 10 stasiun radio.'], 422);
             $name = trim((string)($input['name'] ?? ''));
             $url = trim((string)($input['url'] ?? ''));
             if ($name === '' || !filter_var($url, FILTER_VALIDATE_URL)) {
                 respond(['ok' => false, 'error' => 'Nama dan URL stream yang valid wajib diisi.'], 422);
+            }
+            if (url_looks_like_html($url)) {
+                respond(['ok' => false, 'error' => 'URL tersebut adalah halaman web (HTML), bukan direct stream audio. Masukkan URL MP3/AAC/OGG langsung.'], 422);
             }
             $genre = trim((string)($input['genre'] ?? 'Live Stream')) ?: 'Live Stream';
             $isLive = !empty($input['isLive']) ? 1 : 0;
