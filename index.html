@@ -1793,7 +1793,7 @@
     }
 
     async function loadPortalState() {
-      const candidates = orderEndpointsByCache(STATE_ENDPOINT_CACHE_KEY, ['php-api/state.php', 'api/state']);
+      const candidates = orderEndpointsByCache(STATE_ENDPOINT_CACHE_KEY, ['api/state', 'php-api/state.php']);
       const result = await fetchFirstValidEndpoint(candidates, data => data.ok);
       if (!result) return null;
       stateEndpoint = result.endpoint;
@@ -1802,7 +1802,7 @@
     }
 
     async function loadRadioStationsFromServer() {
-      const candidates = orderEndpointsByCache(RADIO_ENDPOINT_CACHE_KEY, ['php-api/radio.php', 'api/radio']);
+      const candidates = orderEndpointsByCache(RADIO_ENDPOINT_CACHE_KEY, ['api/radio', 'php-api/radio.php']);
       const result = await fetchFirstValidEndpoint(candidates, data => data.ok && Array.isArray(data.stations));
       if (!result) return null;
       rememberEndpoint(RADIO_ENDPOINT_CACHE_KEY, result.endpoint);
@@ -1812,7 +1812,7 @@
     const MIRC_ENDPOINT_CACHE_KEY = 'portalMircEndpoint';
 
     async function loadMircSyncDataFromServer() {
-      const candidates = orderEndpointsByCache(MIRC_ENDPOINT_CACHE_KEY, ['php-api/mirc.php', 'api/mirc']);
+      const candidates = orderEndpointsByCache(MIRC_ENDPOINT_CACHE_KEY, ['api/mirc', 'php-api/mirc.php']);
       const result = await fetchFirstValidEndpoint(
         candidates,
         data => data.ok && data.mircChannels && typeof data.mircChannels === 'object'
@@ -1995,7 +1995,7 @@
       try {
         response = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body
         });
       } catch (err) {
@@ -2040,7 +2040,7 @@
       let bytes = body.length;
       try { bytes = new TextEncoder().encode(body).length; } catch (err) { /* perkiraan */ }
 
-      const endpoints = stateEndpoint ? [stateEndpoint] : ['php-api/state.php', 'api/state'];
+      const endpoints = stateEndpoint ? [stateEndpoint] : ['api/state', 'php-api/state.php'];
       const failures = [];
       for (const endpoint of endpoints) {
         const result = await postStateToEndpoint(endpoint, body);
@@ -2673,6 +2673,7 @@
         syncMircFromServer();
       }
       if (tabKey === 'admin' || tabKey === 'kos') syncStateFromServer();
+      if (tabKey === 'portal' && !currentSession) refreshRegistrationRooms();
     }
 
     function togglePwaSubscription() {
@@ -2969,6 +2970,7 @@
         signInBtn.className = 'py-3.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-stone-600 hover:text-stone-900';
         regPane.classList.remove('hidden');
         signInPane.classList.add('hidden');
+        refreshRegistrationRooms();
       }
     }
 
@@ -2986,6 +2988,21 @@
         return `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} • ${pricing.formattedActive}/bln</option>`;
       }).join('');
       if (prev && vacant.some(r => r.id === prev)) sel.value = prev;
+    }
+
+    async function refreshRegistrationRooms() {
+      try {
+        const state = await loadPortalState();
+        if (state) {
+          applyPersistedState(state);
+          registeredTenants.forEach(ensureTenantFinanceFields);
+          repairSedhahMenuImages();
+          lastRemoteStateJson = JSON.stringify(state);
+          lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
+        }
+      } catch (err) { /* abaikan, tetap pakai data lokal */ }
+      renderRegRoomOptions();
+      renderRooms();
     }
 
     function renderAccountCard() {
@@ -4450,14 +4467,14 @@
 
     async function radioApi(action, payload = {}) {
       const body = JSON.stringify(Object.assign({ action }, payload));
-      const endpoints = ['php-api/radio.php', 'api/radio'];
+      const endpoints = ['api/radio', 'php-api/radio.php'];
 
       for (const endpoint of endpoints) {
         let data = null;
         try {
           const res = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body,
           });
           if ((res.headers.get('content-type') || '').includes('application/json')) {

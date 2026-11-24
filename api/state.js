@@ -58,12 +58,23 @@ function rawBodyBytes(req) {
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+
+  // Preflight/health check: jangan sentuh database, selalu 200.
+  if (req.method === 'OPTIONS') {
+    return res.status(200).json({ ok: true });
+  }
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: `Metode ${req.method} tidak diizinkan.` });
+  }
 
   try {
     const p = getPool();
     await ensureSchema(p);
 
-    if (req.method !== 'POST') {
+    if (req.method === 'GET') {
       const { rows } = await p.query('SELECT data FROM portal_state WHERE id=1');
       return res.status(200).json({ ok: true, state: rows.length ? rows[0].data : null });
     }

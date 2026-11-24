@@ -4,3 +4,4 @@
 - Expects chat/timeline UIs to be bottom-anchored: newest messages start at the bottom of the message box and older lines move up as messages accumulate (no top-down stacking). Confidence: 0.6
 - Insists that hand-edited copy/content already in the code (brand names, addresses, headings) must survive refactors and bug fixes untouched — preserve their edits, fix only the code. Confidence: 0.6
 - Wants mobile layouts to be truly adaptive: no horizontal scrolling/swiping needed to reach nav or tabs — prefers content to wrap onto multiple rows (e.g., nav in 2 lines) rather than overflow-x scroll. Confidence: 0.75
+- Dislikes silent failures: errors (HTTP status, DB/network cause) must be surfaced with the specific reason in the user-facing notification and logged to the console instead of being swallowed. Confidence: 0.6
