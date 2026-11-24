@@ -1990,26 +1990,74 @@
       }
     }
 
+    async function postStateToEndpoint(endpoint, body) {
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+      } catch (err) {
+        return { ok: false, message: `Koneksi gagal: ${err && err.message ? err.message : 'jaringan error'}` };
+      }
+
+      const status = response.status;
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      let data = null;
+      let text = '';
+      try {
+        if (contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          text = await response.text();
+          if (text) {
+            try { data = JSON.parse(text); } catch (err) { /* bukan JSON */ }
+          }
+        }
+      } catch (err) {
+        text = '';
+      }
+
+      if (response.ok && data && data.ok) return { ok: true, data };
+
+      const rawMessage = data && (data.error || data.message);
+      const message = typeof rawMessage === 'string'
+        ? rawMessage
+        : (rawMessage && typeof rawMessage.message === 'string' ? rawMessage.message : '')
+          || (text ? text.slice(0, 180) : '')
+          || response.statusText
+          || 'Tanpa keterangan';
+      return { ok: false, status, message };
+    }
+
     async function savePortalState() {
       const state = getPortalStateSnapshot();
       const json = JSON.stringify(state);
-      if (json === lastSavedStateJson) return;
+      if (json === lastSavedStateJson) return true;
+
+      const body = JSON.stringify({ state });
+      let bytes = body.length;
+      try { bytes = new TextEncoder().encode(body).length; } catch (err) { /* perkiraan */ }
 
       const endpoints = stateEndpoint ? [stateEndpoint] : ['php-api/state.php', 'api/state'];
+      const failures = [];
       for (const endpoint of endpoints) {
-        try {
-          const data = await fetchJson(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ state })
-          });
-          if (!data || !data.ok) continue;
+        const result = await postStateToEndpoint(endpoint, body);
+        if (result.ok) {
           stateEndpoint = endpoint;
           lastSavedStateJson = json;
-          return;
-        } catch (err) { /* coba endpoint berikutnya */ }
+          return true;
+        }
+        failures.push({ endpoint, ...result });
       }
-      showToast('Perubahan belum tersimpan: server penyimpanan tidak tersedia.', 'warning');
+
+      console.error('[state] Gagal menyimpan state', { bytes, failures });
+      const primary = failures[failures.length - 1] || failures[0] || { message: 'server penyimpanan tidak tersedia' };
+      const detail = primary.status ? `HTTP ${primary.status}: ${primary.message}` : primary.message;
+      const sizeHint = bytes > 3.5 * 1024 * 1024 ? ' Ukuran data terlalu besar — hapus/perkecil foto lama.' : '';
+      showToast(`Perubahan belum tersimpan (${detail}).${sizeHint}`, 'error');
+      return false;
     }
 
     async function hydratePortalState() {
@@ -2022,6 +2070,7 @@
       lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
       lastRemoteStateJson = state ? JSON.stringify(state) : '';
       isHydratingState = false;
+      compactStoredImages().catch(() => { /* opsional */ });
     }
 
     function registerStateAutoSave() {
@@ -3773,8 +3822,8 @@
       if (newStatus !== 'occupied') r.tenant = null;
       renderRooms();
       renderAdminPanel();
-      await saveStateImmediately();
-      showToast(`Status ${r.name} diperbarui.`, 'success');
+      const saved = await saveStateImmediately();
+      if (saved) showToast(`Status ${r.name} diperbarui.`, 'success');
     }
 
     function openEditRoomModal(roomId) {
@@ -4131,8 +4180,8 @@
 
       renderAdminPanel();
       if (currentSession && currentSession.role === 'admin') renderBillingAdminDashboard();
-      await saveStateImmediately();
-      showToast(`Pembayaran ${tenant.fullName} (${period}) dicatat. Jatuh tempo berikutnya: ${formatDateID(tenant.nextDueDate)}.`, 'success');
+      const saved = await saveStateImmediately();
+      if (saved) showToast(`Pembayaran ${tenant.fullName} (${period}) dicatat. Jatuh tempo berikutnya: ${formatDateID(tenant.nextDueDate)}.`, 'success');
     }
 
     let paymentLogsActiveUser = null;
@@ -4452,7 +4501,7 @@
     }
 
     // ==================== 9. EVENT LISTENERS & FORM HANDLERS ====================
-    function compressImageToWebP(file, maxSize, squareCrop, callback) {
+    function compressImageToWebP(file, maxSize, squareCrop, callback, quality = 0.65) {
       const reader = new FileReader();
       reader.onload = function (ev) {
         const img = new Image();
@@ -4471,17 +4520,82 @@
             canvas.height = Math.round(img.height * scale);
             canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
           }
-          callback(canvas.toDataURL('image/webp', 0.82));
+          callback(canvas.toDataURL('image/webp', quality));
         };
         img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     }
 
+    // Perkecil gambar lama yang sudah tersimpan agar payload /api/state tetap ringan.
+    function shrinkDataUrlImage(dataUrl, maxSize = 450, quality = 0.65) {
+      if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return Promise.resolve(dataUrl);
+      if (dataUrl.length < 80000) return Promise.resolve(dataUrl);
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const result = canvas.toDataURL('image/webp', quality);
+            resolve(result.length < dataUrl.length ? result : dataUrl);
+          } catch (err) {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
+    async function compactStoredImages() {
+      let changed = false;
+
+      for (const tenant of registeredTenants) {
+        if (tenant.ktpPhoto) {
+          const next = await shrinkDataUrlImage(tenant.ktpPhoto);
+          if (next !== tenant.ktpPhoto) { tenant.ktpPhoto = next; changed = true; }
+        }
+      }
+      for (const entry of guestbookEntries) {
+        if (entry.photo) {
+          const next = await shrinkDataUrlImage(entry.photo);
+          if (next !== entry.photo) { entry.photo = next; changed = true; }
+        }
+      }
+      for (const promo of promos) {
+        if (promo.image && promo.image.startsWith('data:image/')) {
+          const next = await shrinkDataUrlImage(promo.image);
+          if (next !== promo.image) { promo.image = next; changed = true; }
+        }
+      }
+      for (const menu of sedhahMenuItems) {
+        if (menu.image && menu.image.startsWith('data:image/')) {
+          const next = await shrinkDataUrlImage(menu.image);
+          if (next !== menu.image) { menu.image = next; changed = true; }
+        }
+      }
+      if (siteBrandConfig && siteBrandConfig.logoImage) {
+        const next = await shrinkDataUrlImage(siteBrandConfig.logoImage, 256);
+        if (next !== siteBrandConfig.logoImage) { siteBrandConfig.logoImage = next; changed = true; }
+      }
+      (alumniArchive || []).forEach(entry => {
+        if (entry && entry.ktpPhoto) { entry.ktpPhoto = null; changed = true; }
+      });
+
+      if (changed) {
+        refreshDynamicViews();
+        queueStateSave();
+      }
+    }
+
     // Guestbook Photo & Submit
     document.getElementById('gbPhotoInput').addEventListener('change', function (e) {
       if (!e.target.files[0]) return;
-      compressImageToWebP(e.target.files[0], 900, false, (webp) => {
+      compressImageToWebP(e.target.files[0], 450, false, (webp) => {
         pendingGbPhotoWebP = webp;
         document.getElementById('gbPhotoPreview').src = webp;
         document.getElementById('gbPhotoPreviewWrap').classList.remove('hidden');
@@ -4516,7 +4630,7 @@
 
     document.getElementById('regKtpInput').addEventListener('change', function (e) {
       if (!e.target.files[0]) return;
-      compressImageToWebP(e.target.files[0], 900, false, (webp) => {
+      compressImageToWebP(e.target.files[0], 450, false, (webp) => {
         pendingKtpPhotoWebP = webp;
         document.getElementById('regKtpPreviewImg').src = webp;
         document.getElementById('regKtpPreviewBox').classList.remove('hidden');
@@ -4630,14 +4744,14 @@
       switchMainTab('portal');
       switchInternalSubView('billing');
       renderAccountCard();
-      await saveStateImmediately();
+      const saved = await saveStateImmediately();
 
       // Notifikasi member: bunyi + tab berkedip saat welcome mIRC32 masuk.
       unreadMircTabs.add('#umum');
       renderMircChannels();
       renderMircUserList();
       playMircBeep();
-      showToast(`Akun aktif! Username: ${username} • PIN standar: 1234`, 'success');
+      if (saved) showToast(`Akun aktif! Username: ${username} • PIN standar: 1234`, 'success');
       if (memberNotify.permission === 'granted' && 'Notification' in window && Notification.permission === 'granted') {
         try {
           new Notification('Selamat datang di mIRC32 Kos', {
@@ -4876,14 +4990,14 @@
       renderRooms();
       renderMircUserList();
       renderAdminPanel();
-      await saveStateImmediately();
-      showToast(`${tenant.fullName} dipindahkan ke ${targetRoom.name}.`, 'success');
+      const saved = await saveStateImmediately();
+      if (saved) showToast(`${tenant.fullName} dipindahkan ke ${targetRoom.name}.`, 'success');
     });
 
     // Promo & Catalog Edit Handlers
     document.getElementById('adminPromoImageInput').addEventListener('change', function (e) {
       if (!e.target.files[0]) return;
-      compressImageToWebP(e.target.files[0], 800, true, (webp) => {
+      compressImageToWebP(e.target.files[0], 450, true, (webp) => {
         pendingPromoSquareWebP = webp;
         document.getElementById('adminPromoSquarePreview').src = webp;
         document.getElementById('adminPromoSquarePreviewWrap').classList.remove('hidden');
@@ -4942,7 +5056,7 @@
 
     document.getElementById('newSedhahImageInput').addEventListener('change', function (e) {
       if (!e.target.files[0]) return;
-      compressImageToWebP(e.target.files[0], 800, true, (webp) => {
+      compressImageToWebP(e.target.files[0], 450, true, (webp) => {
         pendingSedhahNewImageWebP = webp;
         showToast('Gambar menu siap diunggah (WebP 1:1).', 'info');
       });
@@ -4989,7 +5103,7 @@
 
     document.getElementById('editCatalogImageInput').addEventListener('change', function (e) {
       if (!e.target.files[0]) return;
-      compressImageToWebP(e.target.files[0], 800, true, (webp) => {
+      compressImageToWebP(e.target.files[0], 450, true, (webp) => {
         pendingCatalogEditImageWebP = webp;
         document.getElementById('editCatalogImagePreview').src = webp;
       });
@@ -5070,9 +5184,12 @@
       tenant.pwaMemberSubscribed = false;
       tenant.pushSubscription = null;
       tenant.pushDeviceToken = null;
+      // Foto KTP ikut dihapus agar payload state tidak membengkak setelah check-out.
+      tenant.ktpPhoto = null;
 
       alumniArchive.unshift({
         ...tenant,
+        ktpPhoto: null,
         checkoutDate: 'Hari Ini',
         paymentStatus,
         arrearsAmount: paymentStatus === 'Tunggakan' ? arrearsAmount : 0,
@@ -5098,8 +5215,8 @@
       renderRooms();
       renderMircUserList();
       renderAdminPanel();
-      await saveStateImmediately();
-      showToast(`Check-out ${tenant.fullName} diproses! Kamar ${tenant.roomName} kini Tersedia di Info Kos. Ingat hapus user MikroTik.`, 'warning');
+      const saved = await saveStateImmediately();
+      if (saved) showToast(`Check-out ${tenant.fullName} diproses! Kamar ${tenant.roomName} kini Tersedia di Info Kos. Ingat hapus user MikroTik.`, 'warning');
     });
 
     // Tab Navigation & Radar Location Form Handlers
@@ -5237,6 +5354,12 @@
     });
 
     // ==================== 10. INITIALIZATION ====================
+    function isAdminFormFocused() {
+      const el = document.activeElement;
+      if (!el || !el.closest) return false;
+      return !!el.closest('#tab-admin') && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+    }
+
     function refreshDynamicViews() {
       applySiteBrandConfig();
       applyTabTextsToDOM();
@@ -5251,7 +5374,7 @@
       renderKosRules();
       applyAdminCardOrder();
       updateAdminCardControlsState();
-      if (currentMainTab === 'admin') renderAdminPanel();
+      if (currentMainTab === 'admin' && !isAdminFormFocused()) renderAdminPanel();
       if (currentSession && currentSession.role === 'tenant') {
         renderAccountCard();
         renderPaymentBar();

@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 
-const MAX_BODY_BYTES = 4 * 1024 * 1024;
+// Batas aman di bawah limit platform Vercel (4,5 MB per request).
+const MAX_BODY_BYTES = Number(process.env.MAX_STATE_BYTES || 4 * 1024 * 1024);
 
 let pool = null;
 let schemaReady = null;
@@ -40,11 +41,18 @@ async function ensureSchema(p) {
 }
 
 function readBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch (e) { return {}; }
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body;
+  const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.body;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch (e) { return null; }
   }
-  return {};
+  return null;
+}
+
+function rawBodyBytes(req) {
+  if (typeof req.body === 'string') return Buffer.byteLength(req.body);
+  if (Buffer.isBuffer(req.body)) return req.body.length;
+  return 0;
 }
 
 module.exports = async function handler(req, res) {
@@ -60,15 +68,34 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, state: rows.length ? rows[0].data : null });
     }
 
+    const rawBytes = rawBodyBytes(req);
+    if (rawBytes > MAX_BODY_BYTES) {
+      return res.status(413).json({
+        ok: false,
+        error: `Payload terlalu besar (${(rawBytes / 1024 / 1024).toFixed(2)} MB). Maksimal ${(MAX_BODY_BYTES / 1024 / 1024).toFixed(0)} MB.`,
+      });
+    }
+
     const body = readBody(req);
+    if (!body) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Body JSON tidak valid/tidak ditemukan (kemungkinan request terlalu besar atau Content-Type salah).',
+      });
+    }
+
     const state = body.state;
     if (!state || typeof state !== 'object' || Array.isArray(state)) {
       return res.status(422).json({ ok: false, error: 'Payload state tidak valid.' });
     }
 
     const json = JSON.stringify(state);
-    if (Buffer.byteLength(json) > MAX_BODY_BYTES) {
-      return res.status(413).json({ ok: false, error: 'Data terlalu besar (maksimal 4 MB).' });
+    const jsonBytes = Buffer.byteLength(json);
+    if (jsonBytes > MAX_BODY_BYTES) {
+      return res.status(413).json({
+        ok: false,
+        error: `Data state terlalu besar (${(jsonBytes / 1024 / 1024).toFixed(2)} MB). Maksimal ${(MAX_BODY_BYTES / 1024 / 1024).toFixed(0)} MB. Kecilkan foto/gambar.`,
+      });
     }
 
     await p.query(
@@ -76,8 +103,14 @@ module.exports = async function handler(req, res) {
        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
       [json]
     );
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, bytes: jsonBytes });
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message });
+    const detail = (err && (err.message || String(err))) || 'Gagal menyimpan state.';
+    console.error('[state] save failed:', detail, err && err.code ? `(code ${err.code})` : '', err && err.stack);
+    return res.status(500).json({
+      ok: false,
+      error: detail,
+      code: err && err.code ? err.code : undefined,
+    });
   }
 };

@@ -2,4 +2,5 @@
 - Writes in Indonesian (casual, first person "aku") and expects replies in Indonesian. Confidence: 0.7
 - Expects finished work committed and pushed straight to origin/main (no PR/branch dance), with a short Indonesian commit message; asks for this explicitly at the end of feature requests. Confidence: 0.8
 - Expects chat/timeline UIs to be bottom-anchored: newest messages start at the bottom of the message box and older lines move up as messages accumulate (no top-down stacking). Confidence: 0.6
+- Insists that hand-edited copy/content already in the code (brand names, addresses, headings) must survive refactors and bug fixes untouched — preserve their edits, fix only the code. Confidence: 0.6
 - Wants mobile layouts to be truly adaptive: no horizontal scrolling/swiping needed to reach nav or tabs — prefers content to wrap onto multiple rows (e.g., nav in 2 lines) rather than overflow-x scroll. Confidence: 0.75
