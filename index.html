@@ -1548,7 +1548,7 @@
         <div>
           <label class="block text-xs font-bold text-stone-700 mb-1">Status Kamar Pasca Check-Out *</label>
           <select id="coPostRoomStatus" class="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white">
-            <option value="available">● Tersedia (Langsung Siap Huni)</option>
+            <option value="available" selected>● Tersedia (Langsung Terpublish di Info Kos)</option>
             <option value="renovation">🛠️ Renovasi / Pembersihan Dulu</option>
           </select>
         </div>
@@ -1924,7 +1924,70 @@
     function queueStateSave() {
       if (isHydratingState) return;
       clearTimeout(stateSaveTimer);
-      stateSaveTimer = setTimeout(savePortalState, 700);
+      stateSaveTimer = setTimeout(() => {
+        stateSaveTimer = null;
+        savePortalState();
+      }, 700);
+    }
+
+    // ==================== 1C. SINKRONISASI REAL-TIME STATE ====================
+    const STATE_SYNC_INTERVAL_MS = 5000;
+    let stateSyncInFlight = false;
+    let lastRemoteStateJson = '';
+
+    async function pullLatestStateBeforeMutation() {
+      // Jangan menulis state lama lebih dulu: ambil data terbaru, baru terapkan mutasi.
+      if (stateSaveTimer) {
+        clearTimeout(stateSaveTimer);
+        stateSaveTimer = null;
+      }
+      try {
+        const state = await loadPortalState();
+        if (!state) return null;
+        applyPersistedState(state);
+        registeredTenants.forEach(ensureTenantFinanceFields);
+        repairSedhahMenuImages();
+        lastRemoteStateJson = JSON.stringify(state);
+        lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
+        return state;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    async function saveStateImmediately() {
+      if (stateSaveTimer) {
+        clearTimeout(stateSaveTimer);
+        stateSaveTimer = null;
+      }
+      await savePortalState();
+    }
+
+    async function syncStateFromServer() {
+      if (isHydratingState || stateSyncInFlight) return;
+      if (stateSaveTimer) return; // ada perubahan lokal yang belum terkirim
+      if (typeof document !== 'undefined' && document.hidden) return;
+
+      stateSyncInFlight = true;
+      try {
+        const state = await loadPortalState();
+        if (!state) return;
+        const remoteJson = JSON.stringify(state);
+        if (remoteJson === lastRemoteStateJson) return;
+        lastRemoteStateJson = remoteJson;
+
+        applyPersistedState(state);
+        registeredTenants.forEach(ensureTenantFinanceFields);
+        repairSedhahMenuImages();
+        // Remote berubah: selalu sinkronkan ulang tampilan (termasuk panel admin),
+        // meski state lokal sudah sempat ter-update lewat jalur lain.
+        lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
+        refreshDynamicViews();
+      } catch (err) {
+        /* polling state opsional, abaikan gangguan jaringan */
+      } finally {
+        stateSyncInFlight = false;
+      }
     }
 
     async function savePortalState() {
@@ -1957,6 +2020,7 @@
       revokeStaleMemberNotifications().catch(() => {});
       if (radios) radioStations = radios;
       lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
+      lastRemoteStateJson = state ? JSON.stringify(state) : '';
       isHydratingState = false;
     }
 
@@ -2559,6 +2623,7 @@
         renderMircUserList();
         syncMircFromServer();
       }
+      if (tabKey === 'admin' || tabKey === 'kos') syncStateFromServer();
     }
 
     function togglePwaSubscription() {
@@ -3697,12 +3762,18 @@
     }
 
     // Room & Catalog Modals
-    function changeRoomStatus(roomId, newStatus) {
+    async function changeRoomStatus(roomId, newStatus) {
+      await pullLatestStateBeforeMutation();
       const r = rooms.find(x => x.id === roomId);
-      if (!r) return;
+      if (!r) {
+        showToast('Kamar tidak ditemukan atau sudah dihapus di perangkat lain.', 'warning');
+        return;
+      }
       r.status = newStatus;
+      if (newStatus !== 'occupied') r.tenant = null;
       renderRooms();
       renderAdminPanel();
+      await saveStateImmediately();
       showToast(`Status ${r.name} diperbarui.`, 'success');
     }
 
@@ -4030,9 +4101,13 @@
       return `<span class="font-bold text-emerald-700">${days} hari lagi</span>`;
     }
 
-    function recordTenantPayment(username) {
+    async function recordTenantPayment(username) {
+      await pullLatestStateBeforeMutation();
       const tenant = registeredTenants.find(t => t.username === username);
-      if (!tenant) return;
+      if (!tenant) {
+        showToast('Penghuni tidak ditemukan atau sudah check-out di perangkat lain.', 'warning');
+        return;
+      }
       ensureTenantFinanceFields(tenant);
 
       const period = formatPeriodID(tenant.nextDueDate);
@@ -4056,7 +4131,7 @@
 
       renderAdminPanel();
       if (currentSession && currentSession.role === 'admin') renderBillingAdminDashboard();
-      queueStateSave();
+      await saveStateImmediately();
       showToast(`Pembayaran ${tenant.fullName} (${period}) dicatat. Jatuh tempo berikutnya: ${formatDateID(tenant.nextDueDate)}.`, 'success');
     }
 
@@ -4457,12 +4532,6 @@
       }
 
       const roomId = document.getElementById('regRoomSelect').value;
-      const roomObj = rooms.find(r => r.id === roomId && r.status === 'available');
-      if (!roomObj) {
-        showToast('Silakan pilih kamar kos yang masih tersedia.', 'warning');
-        return;
-      }
-
       const fullName = document.getElementById('regFullName').value.trim();
       if (!fullName) {
         showToast('Nama lengkap wajib diisi.', 'warning');
@@ -4472,6 +4541,16 @@
       // Minta izin notifikasi langsung dari klik tombol daftar (1 tombol).
       const memberNotify = await requestMemberNotificationAccess();
       const memberDeviceToken = memberNotify.permission === 'granted' ? getOrCreateMemberDeviceToken() : null;
+
+      // Tarik state terbaru sebelum menulis agar kamar tidak dobel terisi.
+      await pullLatestStateBeforeMutation();
+      const roomObj = rooms.find(r => r.id === roomId && r.status === 'available');
+      if (!roomObj) {
+        showToast('Kamar yang dipilih sudah tidak tersedia. Silakan pilih kamar lain.', 'warning');
+        renderRegRoomOptions();
+        renderRooms();
+        return;
+      }
 
       const firstWord = (fullName.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z0-9]/g, '') || 'penghuni';
       const rawNumber = (roomObj.name.match(/\d+/) || [String(roomObj.id).replace(/\D/g, '')])[0] || '';
@@ -4546,11 +4625,12 @@
       document.getElementById('regKtpPreviewBox').classList.add('hidden');
       renderRooms();
       renderRegRoomOptions();
+      renderAdminPanel();
       activateLoggedInWorkspace();
       switchMainTab('portal');
       switchInternalSubView('billing');
       renderAccountCard();
-      queueStateSave();
+      await saveStateImmediately();
 
       // Notifikasi member: bunyi + tab berkedip saat welcome mIRC32 masuk.
       unreadMircTabs.add('#umum');
@@ -4761,13 +4841,18 @@
     });
 
     // Move Room Handler
-    document.getElementById('adminMoveRoomForm').addEventListener('submit', function (e) {
+    document.getElementById('adminMoveRoomForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const username = document.getElementById('adminMoveTenantSelect').value;
       const targetRoomId = document.getElementById('adminMoveTargetRoomSelect').value;
+      await pullLatestStateBeforeMutation();
       const tenant = registeredTenants.find(t => t.username === username);
       const targetRoom = rooms.find(r => r.id === targetRoomId);
-      if (!tenant || !targetRoom) return;
+      if (!tenant || !targetRoom) {
+        showToast('Data penghuni/kamar berubah di perangkat lain. Silakan pilih ulang.', 'warning');
+        renderAdminPanel();
+        return;
+      }
 
       const oldRoom = rooms.find(r => r.id === tenant.roomId);
       const oldRoomName = tenant.roomName;
@@ -4791,6 +4876,7 @@
       renderRooms();
       renderMircUserList();
       renderAdminPanel();
+      await saveStateImmediately();
       showToast(`${tenant.fullName} dipindahkan ke ${targetRoom.name}.`, 'success');
     });
 
@@ -4960,17 +5046,24 @@
     });
 
     // Check-Out Form Handler
-    document.getElementById('checkoutForm').addEventListener('submit', function (e) {
+    document.getElementById('checkoutForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const username = document.getElementById('coTenantUsername').value;
-      const idx = registeredTenants.findIndex(t => t.username === username);
-      if (idx === -1) return;
-
-      const tenant = registeredTenants[idx];
       const paymentStatus = document.getElementById('coPaymentStatus').value;
       const arrearsAmount = parseInt(document.getElementById('coArrearsAmount').value, 10) || 0;
       const adminNotes = document.getElementById('coAdminNotes').value.trim();
-      const postStatus = document.getElementById('coPostRoomStatus').value;
+      const postStatus = document.getElementById('coPostRoomStatus').value || 'available';
+
+      await pullLatestStateBeforeMutation();
+      const idx = registeredTenants.findIndex(t => t.username === username);
+      if (idx === -1) {
+        closeCheckoutModal();
+        renderAdminPanel();
+        showToast('Penghuni sudah tidak ada (mungkin di-check-out dari perangkat lain).', 'warning');
+        return;
+      }
+
+      const tenant = registeredTenants[idx];
 
       // Cabut akses notifikasi member & token push sebelum diarsipkan.
       const hadMemberNotifications = !!tenant.pwaMemberSubscribed || !!tenant.pushSubscription || !!tenant.pushDeviceToken;
@@ -4990,7 +5083,7 @@
 
       const roomObj = rooms.find(r => r.id === tenant.roomId);
       if (roomObj) {
-        roomObj.status = postStatus;
+        roomObj.status = postStatus === 'renovation' ? 'renovation' : 'available';
         roomObj.tenant = null;
       }
 
@@ -5005,8 +5098,8 @@
       renderRooms();
       renderMircUserList();
       renderAdminPanel();
-      queueStateSave();
-      showToast(`Check-out ${tenant.fullName} diproses! Ingat hapus user MikroTik ${tenant.roomName}.`, 'warning');
+      await saveStateImmediately();
+      showToast(`Check-out ${tenant.fullName} diproses! Kamar ${tenant.roomName} kini Tersedia di Info Kos. Ingat hapus user MikroTik.`, 'warning');
     });
 
     // Tab Navigation & Radar Location Form Handlers
@@ -5187,6 +5280,11 @@
 
       setInterval(syncMircFromServer, 4000);
       setInterval(() => { checkStaleMemberAccount().catch(() => {}); }, 60000);
+      setInterval(() => { syncStateFromServer(); }, STATE_SYNC_INTERVAL_MS);
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) syncStateFromServer();
+      });
 
       hydratePortalState()
         .then(refreshDynamicViews)
