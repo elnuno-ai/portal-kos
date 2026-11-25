@@ -835,6 +835,22 @@
           <div id="adminPendingTenantsList" class="space-y-2.5 max-h-[420px] overflow-y-auto text-xs"></div>
         </div>
 
+        <!-- CASHFLOW & REKAP TAGIHAN BULANAN -->
+        <div data-admin-card="cashflow" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="font-extrabold text-lg text-stone-900">💰 Cashflow &amp; Rekap Tagihan Bulanan</h3>
+              <p class="text-xs text-stone-600 mt-0.5">Pemasukan, tagihan, dan piutang seluruh kamar per bulan.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="month" id="cashflowMonthInput" class="px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs font-semibold" />
+              <button type="button" onclick="exportCashflowCsv()" class="px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-[11px] font-bold">📥 Export CSV</button>
+            </div>
+          </div>
+          <div id="cashflowSummary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"></div>
+          <div id="cashflowTable" class="overflow-x-auto max-h-[420px] overflow-y-auto"></div>
+        </div>
+
         <!-- 0. IDENTITAS BRAND, LOGO, TITLE, SUBTITLE & FOOTER -->
         <div data-admin-card="brand" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1617,6 +1633,22 @@
     </div>
   </div>
 
+  <!-- MODAL BUKU TAGIHAN PER PERIODE -->
+  <div id="billingPeriodsModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-800">Buku Tagihan Penghuni</span>
+          <h4 class="font-extrabold text-stone-900 text-base" id="billingPeriodsModalTitle">Atur Tagihan</h4>
+        </div>
+        <button type="button" onclick="closeBillingPeriodsModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+      <div id="billingPeriodsModalBody" class="space-y-2 text-xs"></div>
+      <button type="button" onclick="addBillingPeriod()" class="w-full py-2 rounded-xl bg-indigo-800 hover:bg-indigo-900 text-white font-bold text-xs">+ Tambah Periode Tagihan</button>
+      <button type="button" onclick="closeBillingPeriodsModal()" class="w-full py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Tutup</button>
+    </div>
+  </div>
+
   <!-- MODAL LOG PEMBAYARAN PENGHUNI -->
   <div id="paymentLogsModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
@@ -1769,7 +1801,7 @@
     );
 
     // Urutan kartu Panel Admin (bisa disusun ulang)
-    const DEFAULT_ADMIN_CARD_ORDER = ['pending', 'brand', 'running-text', 'rooms', 'move-room', 'rules', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
+    const DEFAULT_ADMIN_CARD_ORDER = ['pending', 'cashflow', 'brand', 'running-text', 'rooms', 'move-room', 'rules', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
     const ADMIN_CARD_ORDER_STORAGE_KEY = 'adminCardOrder';
 
     function sanitizeAdminCardOrder(order) {
@@ -1781,6 +1813,11 @@
           result.push(id);
         }
       });
+      if (!seen.has('cashflow')) {
+        const pendingPos = result.indexOf('pending');
+        result.splice(pendingPos === -1 ? 0 : pendingPos + 1, 0, 'cashflow');
+        seen.add('cashflow');
+      }
       DEFAULT_ADMIN_CARD_ORDER.forEach(id => {
         if (!seen.has(id)) result.push(id);
       });
@@ -2380,6 +2417,63 @@
       return digits ? Number(digits) : 0;
     }
 
+    function monthKeyToLabel(key) {
+      const [year, month] = String(key || '').split('-');
+      const index = Number(month) - 1;
+      if (!year || index < 0 || index > 11) return String(key || '-');
+      return `${MONTHS_ID_LONG[index]} ${year}`;
+    }
+
+    function monthKeyFromLabel(label) {
+      const match = String(label || '').trim().match(/^([A-Za-z]+)\s+(\d{4})$/);
+      if (!match) return null;
+      const index = MONTHS_ID_LONG.findIndex(m => m.toLowerCase() === match[1].toLowerCase());
+      if (index === -1) return null;
+      return `${match[2]}-${pad2(index + 1)}`;
+    }
+
+    function currentMonthKey() {
+      return toISODateLocal(new Date()).slice(0, 7);
+    }
+
+    function ensureBillingPeriods(tenant) {
+      if (!tenant || typeof tenant !== 'object') return [];
+      if (!Array.isArray(tenant.billingPeriods)) tenant.billingPeriods = [];
+      const amount = parseRupiahNumber(tenant.billingAmount);
+      const today = toISODateLocal(new Date());
+
+      (tenant.paymentLogs || []).forEach(log => {
+        const key = monthKeyFromLabel(log.period) || String(log.paidDate || '').slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(key || '')) return;
+        if (tenant.billingPeriods.some(p => p.period === key)) return;
+        tenant.billingPeriods.push({
+          id: 'BP-' + key,
+          period: key,
+          amount: Number(log.amount) || amount,
+          dueDate: log.paidDate || today,
+          status: 'paid',
+          paidDate: log.paidDate || today,
+          note: log.note || ''
+        });
+      });
+
+      const dueKey = String(tenant.nextDueDate || '').slice(0, 7) || currentMonthKey();
+      if (!tenant.billingPeriods.some(p => p.period === dueKey)) {
+        tenant.billingPeriods.push({
+          id: 'BP-' + dueKey,
+          period: dueKey,
+          amount,
+          dueDate: tenant.nextDueDate || addDaysISO(today, 30),
+          status: 'unpaid',
+          paidDate: '',
+          note: ''
+        });
+      }
+
+      tenant.billingPeriods.sort((a, b) => String(a.period).localeCompare(String(b.period)));
+      return tenant.billingPeriods;
+    }
+
     function ensureTenantFinanceFields(tenant) {
       if (!tenant || typeof tenant !== 'object') return tenant;
       if (!tenant.nextDueDate) {
@@ -2388,6 +2482,7 @@
       }
       if (typeof tenant.pwaMemberSubscribed !== 'boolean') tenant.pwaMemberSubscribed = false;
       if (!Array.isArray(tenant.paymentLogs)) tenant.paymentLogs = [];
+      ensureBillingPeriods(tenant);
       return tenant;
     }
 
@@ -3739,6 +3834,7 @@
     // ==================== 7. ADMIN PANEL RENDER & MODALS ====================
     function renderAdminPanel() {
       renderPendingTenants();
+      renderCashflowReport();
 
       // 0. Sync Site Brand, Logo & Footer Form Values
       const brandTitleInput = document.getElementById('adminBrandTitle');
@@ -3902,6 +3998,7 @@
             <div class="flex flex-wrap items-center gap-1.5">
               <button type="button" onclick="recordTenantPayment('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✅ Catat Lunas (+1 Bulan)</button>
               <button type="button" onclick="openPaymentLogsModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold">🧾 Log Pembayaran</button>
+              <button type="button" onclick="openBillingPeriodsModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-950 font-bold">📚 Atur Tagihan</button>
               <button type="button" onclick="regenerateTenantWifiPass('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold" title="Acak Ulang Password Wi-Fi Kamar">🔑 Reset Pass Wi-Fi</button>
               <button type="button" onclick="viewTenantKtp('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold">🪪 KTP & Bio</button>
               <button type="button" onclick="openCheckoutModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-900 font-bold">Check-Out</button>
@@ -4667,6 +4764,15 @@
       }
       ensureTenantFinanceFields(tenant);
 
+      const dueKey = String(tenant.nextDueDate || '').slice(0, 7);
+      const targetPeriod = (tenant.billingPeriods || []).find(p => p.status !== 'paid' && p.period === dueKey)
+        || (tenant.billingPeriods || []).find(p => p.status !== 'paid');
+      if (targetPeriod) {
+        targetPeriod.status = 'paid';
+        targetPeriod.paidDate = toISODateLocal(new Date());
+        if (!targetPeriod.amount) targetPeriod.amount = parseRupiahNumber(tenant.billingAmount);
+      }
+
       const period = formatPeriodID(tenant.nextDueDate);
       const amount = parseRupiahNumber(tenant.billingAmount);
       tenant.paymentLogs.unshift({
@@ -4744,6 +4850,347 @@
       if (currentSession && currentSession.role === 'admin') renderBillingAdminDashboard();
       queueStateSave();
       showToast('Log pembayaran dihapus.', 'info');
+    }
+
+    // ==================== BUKU TAGIHAN PER PERIODE & CASHFLOW ====================
+    let billingPeriodsActiveUser = null;
+
+    function getBillingActiveTenant() {
+      const tenant = registeredTenants.find(t => t.username === billingPeriodsActiveUser);
+      if (tenant) ensureTenantFinanceFields(tenant);
+      return tenant || null;
+    }
+
+    function recalcTenantBilling(tenant) {
+      const periods = ensureBillingPeriods(tenant);
+      const unpaid = periods
+        .filter(p => p.status !== 'paid')
+        .sort((a, b) => String(a.period).localeCompare(String(b.period)));
+      if (unpaid.length) {
+        if (unpaid[0].dueDate) tenant.nextDueDate = unpaid[0].dueDate;
+        if (unpaid[0].amount) tenant.billingAmount = formatRupiah(unpaid[0].amount);
+      } else if (periods.length) {
+        const last = periods[periods.length - 1];
+        tenant.nextDueDate = addMonthsISO(last.dueDate || toISODateLocal(new Date()), 1);
+        ensureBillingPeriods(tenant);
+      }
+      if (currentSession && currentSession.username === tenant.username) {
+        currentSession.nextDueDate = tenant.nextDueDate;
+        currentSession.billingAmount = tenant.billingAmount;
+        currentSession.paymentLogs = tenant.paymentLogs;
+        currentSession.billingPeriods = tenant.billingPeriods;
+      }
+    }
+
+    function openBillingPeriodsModal(username) {
+      billingPeriodsActiveUser = username;
+      renderBillingPeriodsModal();
+      document.getElementById('billingPeriodsModal').classList.remove('hidden');
+    }
+
+    function closeBillingPeriodsModal() {
+      const modal = document.getElementById('billingPeriodsModal');
+      if (modal) modal.classList.add('hidden');
+      billingPeriodsActiveUser = null;
+    }
+
+    function renderBillingPeriodsModal() {
+      const tenant = getBillingActiveTenant();
+      const title = document.getElementById('billingPeriodsModalTitle');
+      const body = document.getElementById('billingPeriodsModalBody');
+      if (!tenant || !body) return;
+      if (title) title.textContent = `Tagihan: ${tenant.fullName} (${tenant.roomName})`;
+
+      const periods = tenant.billingPeriods || [];
+      if (!periods.length) {
+        body.innerHTML = '<div class="text-xs text-stone-500 italic">Belum ada periode tagihan. Tambah periode di bawah.</div>';
+        return;
+      }
+
+      body.innerHTML = periods.map(p => `
+        <div class="p-2.5 rounded-xl border ${p.status === 'paid' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'} space-y-1.5" data-bp-row="${escapeHtml(p.id)}">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+            <label class="block font-bold text-stone-600">Periode
+              <input type="month" data-bp-period value="${escapeHtml(p.period)}" class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white" />
+            </label>
+            <label class="block font-bold text-stone-600">Nominal (Rp)
+              <input type="number" data-bp-amount min="0" step="500" value="${Number(p.amount) || 0}" class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white font-mono-code" />
+            </label>
+            <label class="block font-bold text-stone-600">Jatuh Tempo
+              <input type="date" data-bp-due value="${escapeHtml(p.dueDate || '')}" class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white" />
+            </label>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+            <label class="block font-bold text-stone-600">Status
+              <select data-bp-status class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white">
+                <option value="unpaid" ${p.status === 'paid' ? '' : 'selected'}>Belum Lunas</option>
+                <option value="paid" ${p.status === 'paid' ? 'selected' : ''}>Lunas</option>
+              </select>
+            </label>
+            <label class="block font-bold text-stone-600">Tanggal Lunas
+              <input type="date" data-bp-paid value="${escapeHtml(p.paidDate || '')}" class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white" />
+            </label>
+            <label class="block font-bold text-stone-600">Catatan
+              <input type="text" data-bp-note value="${escapeHtml(p.note || '')}" class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white" />
+            </label>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <button type="button" onclick="saveBillingPeriod('${escapeHtml(p.id)}')" class="px-2.5 py-1 rounded bg-stone-900 hover:bg-stone-800 text-white font-bold">💾 Simpan</button>
+            ${p.status !== 'paid' ? `<button type="button" onclick="markBillingPeriodPaid('${escapeHtml(p.id)}')" class="px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold">✅ Tandai Lunas</button>` : ''}
+            <button type="button" onclick="deleteBillingPeriod('${escapeHtml(p.id)}')" class="px-2.5 py-1 rounded bg-red-100 hover:bg-red-200 text-red-800 font-bold">🗑️ Hapus</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function addBillingPeriod() {
+      const tenant = getBillingActiveTenant();
+      if (!tenant) return;
+      const periods = ensureBillingPeriods(tenant);
+      const last = periods[periods.length - 1];
+      const baseKey = last ? last.period : currentMonthKey();
+      const [year, month] = baseKey.split('-').map(Number);
+      const nextDate = new Date(year, month, 1);
+      let nextKey = toISODateLocal(nextDate).slice(0, 7);
+      while (periods.some(p => p.period === nextKey)) {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        nextKey = toISODateLocal(nextDate).slice(0, 7);
+      }
+      periods.push({
+        id: 'BP-' + nextKey + '-' + Date.now().toString(36).toUpperCase(),
+        period: nextKey,
+        amount: last ? Number(last.amount) || parseRupiahNumber(tenant.billingAmount) : parseRupiahNumber(tenant.billingAmount),
+        dueDate: last ? addMonthsISO(last.dueDate || toISODateLocal(new Date()), 1) : addDaysISO(toISODateLocal(new Date()), 30),
+        status: 'unpaid',
+        paidDate: '',
+        note: ''
+      });
+      periods.sort((a, b) => String(a.period).localeCompare(String(b.period)));
+      renderBillingPeriodsModal();
+      renderAdminPanel();
+      const saved = await saveStateImmediately();
+      if (saved) showToast('Periode tagihan baru ditambahkan.', 'success');
+    }
+
+    async function saveBillingPeriod(id) {
+      await pullLatestStateBeforeMutation();
+      const tenant = getBillingActiveTenant();
+      if (!tenant) return;
+      const row = document.querySelector(`[data-bp-row="${id}"]`);
+      const period = (tenant.billingPeriods || []).find(p => p.id === id);
+      if (!row || !period) {
+        showToast('Periode tagihan tidak ditemukan. Muat ulang modal.', 'warning');
+        return;
+      }
+
+      const periodKey = row.querySelector('[data-bp-period]').value;
+      const amount = parseInt(row.querySelector('[data-bp-amount]').value, 10) || 0;
+      const dueDate = row.querySelector('[data-bp-due]').value;
+      const status = row.querySelector('[data-bp-status]').value === 'paid' ? 'paid' : 'unpaid';
+      let paidDate = row.querySelector('[data-bp-paid]').value;
+      const note = row.querySelector('[data-bp-note]').value.trim();
+      if (!/^\d{4}-\d{2}$/.test(periodKey)) {
+        showToast('Format periode tidak valid.', 'warning');
+        return;
+      }
+      if (status === 'paid' && !paidDate) paidDate = toISODateLocal(new Date());
+
+      period.period = periodKey;
+      period.amount = amount;
+      period.dueDate = dueDate || period.dueDate;
+      period.status = status;
+      period.paidDate = status === 'paid' ? paidDate : '';
+      period.note = note;
+
+      const autoLogId = 'BPP-' + tenant.username + '-' + periodKey;
+      if (status === 'paid') {
+        if (!tenant.paymentLogs.some(log => log.id === autoLogId)) {
+          tenant.paymentLogs.unshift({
+            id: autoLogId,
+            period: monthKeyToLabel(periodKey),
+            amount,
+            paidDate: period.paidDate,
+            method: 'Buku Tagihan Admin',
+            note
+          });
+        }
+      } else {
+        tenant.paymentLogs = tenant.paymentLogs.filter(log => log.id !== autoLogId);
+      }
+
+      recalcTenantBilling(tenant);
+      renderBillingPeriodsModal();
+      renderAdminPanel();
+      const saved = await saveStateImmediately();
+      if (saved) showToast('Periode tagihan disimpan.', 'success');
+    }
+
+    async function markBillingPeriodPaid(id) {
+      await pullLatestStateBeforeMutation();
+      const tenant = getBillingActiveTenant();
+      if (!tenant) return;
+      const period = (tenant.billingPeriods || []).find(p => p.id === id);
+      if (!period) return;
+      period.status = 'paid';
+      period.paidDate = toISODateLocal(new Date());
+      if (!period.amount) period.amount = parseRupiahNumber(tenant.billingAmount);
+
+      const autoLogId = 'BPP-' + tenant.username + '-' + period.period;
+      if (!tenant.paymentLogs.some(log => log.id === autoLogId)) {
+        tenant.paymentLogs.unshift({
+          id: autoLogId,
+          period: monthKeyToLabel(period.period),
+          amount: Number(period.amount) || 0,
+          paidDate: period.paidDate,
+          method: 'Buku Tagihan Admin',
+          note: period.note || ''
+        });
+      }
+      recalcTenantBilling(tenant);
+      renderBillingPeriodsModal();
+      renderAdminPanel();
+      const saved = await saveStateImmediately();
+      if (saved) showToast('Tagihan ditandai lunas.', 'success');
+    }
+
+    async function deleteBillingPeriod(id) {
+      const tenant = getBillingActiveTenant();
+      if (!tenant) return;
+      if (!confirm('Hapus periode tagihan ini?')) return;
+      await pullLatestStateBeforeMutation();
+      const real = getBillingActiveTenant();
+      if (!real) return;
+      const period = (real.billingPeriods || []).find(p => p.id === id);
+      real.billingPeriods = (real.billingPeriods || []).filter(p => p.id !== id);
+      if (period) {
+        const autoLogId = 'BPP-' + real.username + '-' + period.period;
+        real.paymentLogs = (real.paymentLogs || []).filter(log => log.id !== autoLogId);
+      }
+      recalcTenantBilling(real);
+      renderBillingPeriodsModal();
+      renderAdminPanel();
+      const saved = await saveStateImmediately();
+      if (saved) showToast('Periode tagihan dihapus.', 'info');
+    }
+
+    function getCashflowMonth() {
+      const input = document.getElementById('cashflowMonthInput');
+      if (input && input.value) return input.value;
+      return currentMonthKey();
+    }
+
+    function getCashflowRows(month) {
+      return registeredTenants.map(tenant => {
+        ensureTenantFinanceFields(tenant);
+        const logs = (tenant.paymentLogs || []).filter(log => String(log.paidDate || '').slice(0, 7) === month);
+        const income = logs.reduce((sum, log) => sum + (Number(log.amount) || 0), 0);
+        const period = (tenant.billingPeriods || []).find(p => p.period === month) || null;
+        const dueDate = period ? period.dueDate : (String(tenant.nextDueDate || '').slice(0, 7) === month ? tenant.nextDueDate : '');
+        const amount = period ? Number(period.amount) || 0 : (String(tenant.nextDueDate || '').slice(0, 7) === month ? parseRupiahNumber(tenant.billingAmount) : 0);
+        const status = period ? (period.status === 'paid' ? 'paid' : 'unpaid') : (income > 0 ? 'paid' : 'none');
+        return { tenant, period, income, amount, dueDate, status };
+      });
+    }
+
+    function renderCashflowReport() {
+      const summaryEl = document.getElementById('cashflowSummary');
+      const tableEl = document.getElementById('cashflowTable');
+      if (!summaryEl || !tableEl) return;
+
+      const monthInput = document.getElementById('cashflowMonthInput');
+      const month = getCashflowMonth();
+      if (monthInput && !monthInput.value) monthInput.value = month;
+
+      const rows = getCashflowRows(month);
+      const income = rows.reduce((sum, row) => sum + row.income, 0);
+      const invoice = rows.reduce((sum, row) => sum + row.amount, 0);
+      const outstanding = rows.reduce((sum, row) => sum + (row.status === 'unpaid' ? row.amount : 0), 0);
+      const paidCount = rows.filter(row => row.status === 'paid').length;
+      const unpaidCount = rows.filter(row => row.status === 'unpaid').length;
+
+      const card = (label, value, sub, cls) => `
+        <div class="rounded-xl border p-3 ${cls}">
+          <div class="text-[10px] font-bold uppercase tracking-wide">${label}</div>
+          <div class="text-lg font-extrabold font-mono-code mt-0.5">${value}</div>
+          <div class="text-[10px] opacity-80">${sub}</div>
+        </div>
+      `;
+      summaryEl.innerHTML =
+        card('Kas Masuk (Tgl Bayar)', formatRupiah(income), monthKeyToLabel(month), 'bg-emerald-50 border-emerald-200 text-emerald-950') +
+        card('Total Tagihan', formatRupiah(invoice), `${paidCount} kamar lunas`, 'bg-blue-50 border-blue-200 text-blue-950') +
+        card('Piutang / Belum Lunas', formatRupiah(outstanding), `${unpaidCount} kamar belum bayar`, 'bg-amber-50 border-amber-200 text-amber-950') +
+        card('Kamar Terpantau', `${rows.length}`, 'Penghuni aktif', 'bg-stone-50 border-stone-200 text-stone-900');
+
+      if (!rows.length) {
+        tableEl.innerHTML = '<div class="text-xs text-stone-500 italic p-2">Belum ada penghuni aktif.</div>';
+        return;
+      }
+
+      const statusBadge = status => status === 'paid'
+        ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">Lunas</span>'
+        : status === 'unpaid'
+          ? '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold">Belum Lunas</span>'
+          : '<span class="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-bold">-</span>';
+
+      tableEl.innerHTML = `
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-left text-stone-500 border-b border-stone-200">
+              <th class="px-2 py-2">Kamar</th>
+              <th class="px-2 py-2">Nama</th>
+              <th class="px-2 py-2">Tagihan</th>
+              <th class="px-2 py-2">Jatuh Tempo</th>
+              <th class="px-2 py-2">Status</th>
+              <th class="px-2 py-2">Kas Masuk (Tgl Bayar)</th>
+              <th class="px-2 py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(row => `
+              <tr class="border-b border-stone-100">
+                <td class="px-2 py-2 font-bold text-stone-900">${escapeHtml(row.tenant.roomName)}</td>
+                <td class="px-2 py-2">${escapeHtml(row.tenant.fullName)}</td>
+                <td class="px-2 py-2 font-mono-code">${row.amount ? formatRupiah(row.amount) : '-'}</td>
+                <td class="px-2 py-2">${row.dueDate ? formatDateID(row.dueDate) : '-'}</td>
+                <td class="px-2 py-2">${statusBadge(row.status)}</td>
+                <td class="px-2 py-2 font-mono-code text-emerald-800">${formatRupiah(row.income)}</td>
+                <td class="px-2 py-2">
+                  <div class="flex flex-wrap gap-1">
+                    <button type="button" onclick="openBillingPeriodsModal('${row.tenant.username}')" class="px-2 py-1 rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-950 font-bold">📚 Tagihan</button>
+                    <a href="${buildTenantReminderWa(row.tenant)}" target="_blank" class="px-2 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold">📲 WA</a>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function exportCashflowCsv() {
+      const month = getCashflowMonth();
+      const rows = [[
+        'Bulan', 'Kamar', 'Nama Penghuni', 'Tagihan', 'Jatuh Tempo', 'Status',
+        'Tanggal Lunas', 'Pemasukan Bulan Ini', 'Metode', 'Catatan'
+      ]];
+      const details = getCashflowRows(month);
+      details.forEach(row => {
+        const paidLog = (row.tenant.paymentLogs || []).find(log => String(log.paidDate || '').slice(0, 7) === month);
+        rows.push([
+          monthKeyToLabel(month),
+          row.tenant.roomName,
+          row.tenant.fullName,
+          row.amount,
+          row.dueDate ? formatDateID(row.dueDate) : '-',
+          row.status === 'paid' ? 'Lunas' : row.status === 'unpaid' ? 'Belum Lunas' : '-',
+          paidLog ? formatDateID(paidLog.paidDate) : '-',
+          row.income,
+          paidLog ? (paidLog.method || '-') : '-',
+          row.period ? (row.period.note || '') : ''
+        ]);
+      });
+      downloadCsv(`cashflow-${month}.csv`, rows);
+      showToast(`Laporan cashflow ${monthKeyToLabel(month)} diunduh.`, 'success');
     }
 
     // ==================== TATA TERTIB & PERATURAN KOS ====================
@@ -5859,6 +6306,8 @@
         showToast(err.message, 'error');
       }
     });
+
+    document.getElementById('cashflowMonthInput').addEventListener('change', renderCashflowReport);
 
     // ==================== 10. INITIALIZATION ====================
     function isAdminFormFocused() {
