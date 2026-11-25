@@ -173,6 +173,9 @@
               <button onclick="switchMainTab('portal')" class="px-5 py-2.5 rounded-xl bg-stone-950/70 hover:bg-stone-950 text-amber-300 font-semibold text-sm border border-amber-500/30 transition">
                 Portal Penghuni & mIRC32 ➔
               </button>
+              <button type="button" id="visitorPushBtn" onclick="subscribeVisitorPush()" class="px-3 py-2 rounded-xl bg-emerald-900/70 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/30 font-semibold text-xs transition">
+                🔔 Aktifkan Info Kos
+              </button>
               <div class="flex items-center gap-1.5">
                 <span class="text-[11px] font-semibold text-stone-400 hidden sm:inline">Ikuti kami:</span>
                 <a href="https://instagram.com/sedhahayu" target="_blank" title="Instagram Sedhah Ayu" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-sm transition">📷</a>
@@ -695,9 +698,13 @@
                 <div class="flex justify-between"><span class="text-stone-500">Tarif Bulanan</span><span class="font-bold text-stone-900" id="billingAmount">Rp 650.000</span></div>
                 <div class="flex justify-between"><span class="text-stone-500">Jatuh Tempo</span><span class="font-semibold text-amber-800" id="billingDueDate">10 Desember 2026</span></div>
               </div>
-              <button type="button" onclick="confirmBillingViaChat()" class="w-full py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs sm:text-sm transition">
-                📨 Kirim Konfirmasi Bayar ke @AdminKos
-              </button>
+              <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-1.5">
+                <div class="font-bold text-amber-950 leading-relaxed">Pembayaran : Cash / via Dana 08568577633 / Rek. BRI an. 308101019983533</div>
+                <div class="text-amber-900">Setelah membayar, konfirmasi ke WhatsApp <strong>08568577633</strong> agar Admin mencatat status lunas.</div>
+                <a id="billingWaConfirmLink" href="https://wa.me/628568577633" target="_blank" class="block text-center py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition">
+                  📲 Konfirmasi Pembayaran via WhatsApp
+                </a>
+              </div>
             </div>
 
             <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
@@ -856,7 +863,77 @@
             </div>
           </div>
           <div id="cashflowSummary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"></div>
+          <div id="cashflowMethodBreakdown" class="text-[11px] font-semibold text-stone-600"></div>
           <div id="cashflowTable" class="overflow-x-auto max-h-[420px] overflow-y-auto"></div>
+        </div>
+
+        <!-- PUSH NOTIFICATION & BANNER BROADCAST -->
+        <div data-admin-card="push" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="font-extrabold text-lg text-stone-900">📢 Notifikasi Push &amp; Banner</h3>
+              <p class="text-xs text-stone-600 mt-0.5">Kirim banner ke HP subscriber — termasuk pengunjung yang tidak login.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span id="pushConfigState" class="px-2 py-1 rounded-full bg-stone-100 text-stone-700 text-[11px] font-bold">Memuat status…</span>
+              <button type="button" onclick="refreshPushAdminStats(true)" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 text-[11px] font-bold">↻ Statistik</button>
+              <button type="button" onclick="cleanupPushSubscriptions()" class="px-2.5 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 text-[11px] font-bold">🧹 Bersihkan</button>
+            </div>
+          </div>
+          <div id="pushAdminStats" class="text-[11px] font-semibold text-stone-600">Memuat data subscriber…</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <label class="block font-bold text-stone-700">Judul Banner
+              <input id="pushTitle" type="text" maxlength="60" placeholder="Info Kos / Promo Sedhah Ayu" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white" />
+            </label>
+            <label class="block font-bold text-stone-700">Tujuan Klik
+              <select id="pushTarget" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white">
+                <option value="home">Beranda</option>
+                <option value="kos">Info Kos</option>
+                <option value="sedhah">Menu Sedhah Ayu</option>
+                <option value="promo">Promo</option>
+                <option value="portal">Portal Kos</option>
+              </select>
+            </label>
+            <label class="block font-bold text-stone-700 sm:col-span-2">Isi Banner
+              <textarea id="pushBody" rows="2" maxlength="180" placeholder="Tulis pengumuman singkat..." class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white"></textarea>
+            </label>
+            <label class="block font-bold text-stone-700">Audiens
+              <select id="pushAudience" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white">
+                <option value="all">Semua subscriber</option>
+                <option value="visitor">Pengunjung tanpa login</option>
+                <option value="member">Member terdaftar</option>
+              </select>
+            </label>
+            <label class="block font-bold text-stone-700">Prioritas
+              <select id="pushPriority" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white">
+                <option value="normal">Normal</option>
+                <option value="urgent">Mendesak</option>
+              </select>
+            </label>
+            <label class="block font-bold text-stone-700">Kunci Admin Push (PUSH_ADMIN_TOKEN)
+              <input id="pushAdminToken" type="password" placeholder="Sama dengan env di Vercel" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white" />
+            </label>
+            <label class="block font-bold text-stone-700">Tag Banner
+              <input id="pushTag" type="text" maxlength="40" value="info" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white" />
+            </label>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" onclick="applyPushTemplate('room')" class="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 text-[11px] font-bold">🏠 Kamar Tersedia</button>
+            <button type="button" onclick="applyPushTemplate('promo')" class="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 text-[11px] font-bold">🍛 Promo</button>
+            <button type="button" onclick="applyPushTemplate('info')" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 text-[11px] font-bold">📢 Pengumuman</button>
+            <button type="button" onclick="applyPushTemplate('gangguan')" class="px-2.5 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 text-[11px] font-bold">⚠️ Gangguan</button>
+            <button type="button" onclick="applyPushTemplate('tagihan')" class="px-2.5 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 text-[11px] font-bold">💳 Tagihan</button>
+          </div>
+          <div class="p-3 rounded-xl bg-stone-900 text-stone-50 space-y-1">
+            <div class="text-[10px] uppercase tracking-wide text-stone-400 font-bold">Preview di HP</div>
+            <div class="text-xs font-bold" id="pushPreviewTitle">Judul banner</div>
+            <div class="text-[11px] text-stone-300" id="pushPreviewBody">Isi banner akan tampil di sini.</div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="sendPushBroadcast()" class="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold">🚀 Kirim Banner Push</button>
+            <span id="pushSendResult" class="text-[11px] font-semibold text-stone-600"></span>
+          </div>
+          <p class="text-[10px] text-stone-500">Butuh env Vercel: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, PUSH_ADMIN_TOKEN. Izin notifikasi tidak bisa dipaksa; subscriber harus menekan “Aktifkan Info Kos”.</p>
         </div>
 
         <!-- 0. IDENTITAS BRAND, LOGO, TITLE, SUBTITLE & FOOTER -->
@@ -1641,6 +1718,40 @@
     </div>
   </div>
 
+  <!-- MODAL CATAT PEMBAYARAN (CASH / TRANSFER) -->
+  <div id="recordPaymentModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <form id="recordPaymentForm" class="bg-white rounded-2xl max-w-md w-full p-6 space-y-3 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-2">
+        <h4 class="font-extrabold text-stone-900 text-base" id="recordPaymentTitle">Catat Pembayaran</h4>
+        <button type="button" onclick="closeRecordPaymentModal()" class="text-stone-500 hover:text-stone-900 font-bold text-lg">✕</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        <label class="block font-bold text-stone-700">Metode Pembayaran
+          <select id="recordPaymentMethod" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white">
+            <option value="Cash">Cash / Tunai</option>
+            <option value="Transfer">Transfer (Dana / BRI)</option>
+          </select>
+        </label>
+        <label class="block font-bold text-stone-700">Nominal (Rp)
+          <input type="number" id="recordPaymentAmount" min="0" step="500" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white font-mono-code" />
+        </label>
+        <label class="block font-bold text-stone-700">Tanggal Bayar
+          <input type="date" id="recordPaymentDate" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white" />
+        </label>
+        <label class="block font-bold text-stone-700">Catatan
+          <input type="text" id="recordPaymentNote" placeholder="Opsional (nomor referensi, dll)" class="mt-1 w-full px-2.5 py-2 rounded-xl border border-stone-300 bg-white" />
+        </label>
+      </div>
+      <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-[11px] text-stone-600">
+        Sistem akan menandai periode berjalan lunas, menambah 1 bulan jatuh tempo, dan mencatat metode <strong>Cash/Transfer</strong> di laporan.
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="closeRecordPaymentModal()" class="flex-1 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Batal</button>
+        <button type="submit" class="flex-1 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs">✅ Simpan Pembayaran</button>
+      </div>
+    </form>
+  </div>
+
   <!-- MODAL BUKU TAGIHAN PER PERIODE -->
   <div id="billingPeriodsModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
@@ -1811,7 +1922,7 @@
     );
 
     // Urutan kartu Panel Admin (bisa disusun ulang)
-    const DEFAULT_ADMIN_CARD_ORDER = ['pending', 'cashflow', 'brand', 'running-text', 'rooms', 'move-room', 'rules', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
+    const DEFAULT_ADMIN_CARD_ORDER = ['pending', 'cashflow', 'push', 'brand', 'running-text', 'rooms', 'move-room', 'rules', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
     const ADMIN_CARD_ORDER_STORAGE_KEY = 'adminCardOrder';
 
     function sanitizeAdminCardOrder(order) {
@@ -1827,6 +1938,11 @@
         const pendingPos = result.indexOf('pending');
         result.splice(pendingPos === -1 ? 0 : pendingPos + 1, 0, 'cashflow');
         seen.add('cashflow');
+      }
+      if (!seen.has('push')) {
+        const cashflowPos = result.indexOf('cashflow');
+        result.splice(cashflowPos === -1 ? result.length : cashflowPos + 1, 0, 'push');
+        seen.add('push');
       }
       DEFAULT_ADMIN_CARD_ORDER.forEach(id => {
         if (!seen.has(id)) result.push(id);
@@ -2421,6 +2537,22 @@
       return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     }
 
+    const PAYMENT_WA_NUMBER = '628568577633';
+    const PAYMENT_WA_DISPLAY = '08568577633';
+
+    function buildBillingWaConfirmUrl() {
+      const session = currentSession;
+      if (!session || session.role !== 'tenant') return `https://wa.me/${PAYMENT_WA_NUMBER}`;
+      const amount = session.billingAmount || 'Rp 650.000';
+      const message = `Halo Admin, saya ${session.fullName} (${session.roomName}), konfirmasi pembayaran sewa periode ${formatPeriodID(session.nextDueDate)} sebesar ${amount}. Metode: Cash / Transfer (Dana ${PAYMENT_WA_DISPLAY} / BRI 308101019983533). Mohon dicatat sebagai lunas. Terima kasih.`;
+      return `https://wa.me/${PAYMENT_WA_NUMBER}?text=${encodeURIComponent(message)}`;
+    }
+
+    function updateBillingWaConfirmLink() {
+      const link = document.getElementById('billingWaConfirmLink');
+      if (link) link.href = buildBillingWaConfirmUrl();
+    }
+
     // ==================== 2B. UTILITAS PEMBAYARAN & NOTIFIKASI MEMBER ====================
     const MONTHS_ID_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const MONTHS_ID_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -2634,10 +2766,18 @@
       let subscription = null;
       if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
         try {
-          const registration = await navigator.serviceWorker.getRegistration();
+          const registration = await ensurePushServiceWorker();
+          const config = await fetchPushConfig();
           if (registration && registration.pushManager) {
-            const existing = await registration.pushManager.getSubscription();
-            if (existing) subscription = existing.toJSON ? existing.toJSON() : existing;
+            await waitForServiceWorkerReady();
+            let current = await registration.pushManager.getSubscription();
+            if (!current && config && config.enabled && config.publicKey) {
+              current = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(config.publicKey)
+              });
+            }
+            if (current) subscription = current.toJSON ? current.toJSON() : current;
           }
         } catch (err) { /* subscription push opsional */ }
       }
@@ -2681,6 +2821,336 @@
       }
     }
 
+    // ==================== PUSH NOTIFICATION (PENGGUNJUNG & MEMBER) ====================
+    let pushSwRegistrationPromise = null;
+    let pushAdminStatsFetchedAt = 0;
+
+    function ensurePushServiceWorker() {
+      if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+      if (!pushSwRegistrationPromise) {
+        pushSwRegistrationPromise = navigator.serviceWorker.register('sw.js').catch(async () => {
+          try { return await navigator.serviceWorker.getRegistration(); } catch (err) { return null; }
+        });
+      }
+      return pushSwRegistrationPromise;
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      const output = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i += 1) output[i] = rawData.charCodeAt(i);
+      return output;
+    }
+
+    async function fetchPushConfig() {
+      try {
+        const res = await fetch('api/push?action=config', { headers: { Accept: 'application/json' } });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data && data.ok ? data : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function waitForServiceWorkerReady(timeoutMs = 3000) {
+      if (!('serviceWorker' in navigator)) return Promise.resolve();
+      return Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise(resolve => setTimeout(resolve, timeoutMs))
+      ]);
+    }
+
+    async function getCurrentPushSubscription() {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration || !registration.pushManager) return null;
+        return await registration.pushManager.getSubscription();
+      } catch (err) {
+        return null;
+      }
+    }
+
+    async function updateVisitorPushButton() {
+      const btn = document.getElementById('visitorPushBtn');
+      if (!btn) return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        btn.textContent = '🔔 Info Kos';
+        return;
+      }
+      if ('Notification' in window && Notification.permission === 'denied') {
+        btn.textContent = '🔕 Notif Diblokir';
+        return;
+      }
+      const subscription = await getCurrentPushSubscription();
+      const subscribed = !!subscription;
+      btn.textContent = subscribed ? '✅ Info Kos Aktif' : '🔔 Aktifkan Info Kos';
+      btn.className = subscribed
+        ? 'px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white border border-emerald-400/40 font-semibold text-xs transition'
+        : 'px-3 py-2 rounded-xl bg-emerald-900/70 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/30 font-semibold text-xs transition';
+    }
+
+    async function subscribeVisitorPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        showToast('Browser ini belum mendukung notifikasi push. Gunakan Chrome/Edge terbaru atau pasang PWA di iPhone.', 'warning');
+        return;
+      }
+      if (!window.isSecureContext) {
+        showToast('Notifikasi push membutuhkan HTTPS (atau localhost).', 'warning');
+        return;
+      }
+      if (!('Notification' in window)) {
+        showToast('Browser ini tidak mendukung izin notifikasi.', 'warning');
+        return;
+      }
+      if (Notification.permission === 'denied') {
+        showToast('Izin notifikasi diblokir. Buka pengaturan situs di browser untuk mengaktifkannya.', 'warning');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showToast('Izin notifikasi belum diberikan. Banner tidak bisa dikirim ke HP Anda.', 'warning');
+        return;
+      }
+
+      try {
+        const config = await fetchPushConfig();
+        if (!config || !config.enabled || !config.publicKey) {
+          showToast('Push belum aktif di server (VAPID belum diset Admin).', 'warning');
+          return;
+        }
+        const registration = await ensurePushServiceWorker();
+        if (!registration) {
+          showToast('Service worker gagal didaftarkan. Muat ulang halaman lalu coba lagi.', 'error');
+          return;
+        }
+        await waitForServiceWorkerReady();
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(config.publicKey)
+          });
+        }
+        const audience = currentSession && currentSession.role === 'tenant' ? 'member' : 'visitor';
+        const res = await fetch('api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            action: 'subscribe',
+            subscription: subscription.toJSON ? subscription.toJSON() : subscription,
+            audience,
+            username: currentSession && currentSession.role === 'tenant' ? currentSession.username : '',
+            label: String(navigator.userAgent || '').slice(0, 160)
+          })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok) {
+          showToast(`Gagal menyimpan subscription: ${(data && data.error) || 'server menolak'}`, 'error');
+          return;
+        }
+        updateVisitorPushButton();
+        showToast('Notifikasi Info Kos aktif di perangkat ini!', 'success');
+      } catch (err) {
+        console.error('[push] subscribe gagal', err);
+        showToast(`Gagal mengaktifkan notifikasi: ${err && err.message ? err.message : 'tidak diketahui'}`, 'error');
+      }
+    }
+
+    async function registerPushSubscriptionForMember(username) {
+      if (!username) return false;
+      try {
+        const subscription = await getCurrentPushSubscription();
+        if (!subscription) return false;
+        const res = await fetch('api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            action: 'subscribe',
+            subscription: subscription.toJSON ? subscription.toJSON() : subscription,
+            audience: 'member',
+            username,
+            label: String(navigator.userAgent || '').slice(0, 160)
+          })
+        });
+        return res.ok;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    async function downgradePushToVisitor() {
+      try {
+        const subscription = await getCurrentPushSubscription();
+        if (!subscription) return false;
+        const res = await fetch('api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            action: 'subscribe',
+            subscription: subscription.toJSON ? subscription.toJSON() : subscription,
+            audience: 'visitor',
+            username: '',
+            label: String(navigator.userAgent || '').slice(0, 160)
+          })
+        });
+        return res.ok;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    async function refreshPushAdminStats(force = false) {
+      if (!currentSession || currentSession.role !== 'admin') return;
+      const statsEl = document.getElementById('pushAdminStats');
+      const stateEl = document.getElementById('pushConfigState');
+      if (!statsEl) return;
+      if (!force && Date.now() - pushAdminStatsFetchedAt < 30000) return;
+      pushAdminStatsFetchedAt = Date.now();
+      try {
+        const res = await fetch('api/push?action=stats', { headers: { Accept: 'application/json' } });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok) {
+          statsEl.textContent = `Gagal memuat statistik: ${(data && data.error) || res.status}`;
+          if (stateEl) stateEl.textContent = '⚠️ Server push bermasalah';
+          return;
+        }
+        if (stateEl) {
+          stateEl.textContent = data.enabled ? '✅ VAPID aktif' : '⚠️ VAPID belum diset';
+          stateEl.className = data.enabled
+            ? 'px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold'
+            : 'px-2 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold';
+        }
+        const last = data.lastSubscribedAt ? new Date(data.lastSubscribedAt).toLocaleString('id-ID') : '-';
+        statsEl.textContent = `Subscriber: ${data.total || 0} total • Pengunjung ${data.visitor || 0} • Member ${data.member || 0} • Update terakhir ${last}`;
+      } catch (err) {
+        statsEl.textContent = `Gagal memuat statistik: ${err && err.message ? err.message : 'jaringan error'}`;
+        if (stateEl) stateEl.textContent = '⚠️ Tidak terhubung';
+      }
+    }
+
+    async function cleanupPushSubscriptions() {
+      try {
+        const res = await fetch('api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ action: 'cleanup' })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok) {
+          showToast(`Gagal membersihkan subscription: ${(data && data.error) || res.status}`, 'error');
+          return;
+        }
+        showToast(`Bersih: ${data.removed || 0} subscription tidak valid dihapus.`, 'success');
+        refreshPushAdminStats(true);
+      } catch (err) {
+        showToast(`Gagal membersihkan subscription: ${err && err.message ? err.message : 'jaringan error'}`, 'error');
+      }
+    }
+
+    function applyPushTemplate(kind) {
+      const titleEl = document.getElementById('pushTitle');
+      const bodyEl = document.getElementById('pushBody');
+      const targetEl = document.getElementById('pushTarget');
+      const audienceEl = document.getElementById('pushAudience');
+      const priorityEl = document.getElementById('pushPriority');
+      const tagEl = document.getElementById('pushTag');
+      if (!titleEl || !bodyEl) return;
+      const templates = {
+        room: ['Kamar Kos Tersedia 🏠', 'Ada kamar kosong di Sedhah Ayu. Cek Info Kos dan hubungi pengelola sebelum terisi.', 'kos', 'all', 'normal', 'kamar'],
+        promo: ['Promo Sedhah Ayu 🍛', 'Menu spesial hari ini sudah siap di Pondhok Dhahar Sedhah Ayu. Cek promo sebelum kehabisan!', 'sedhah', 'all', 'normal', 'promo'],
+        info: ['Info Kos 📢', 'Ada informasi baru dari pengelola Kos Sedhah Ayu. Ketuk untuk membaca detailnya.', 'home', 'all', 'normal', 'info'],
+        gangguan: ['Gangguan Layanan ⚠️', 'Sedang ada perbaikan layanan kos. Mohon maaf atas ketidaknyamanannya, kami kabari lagi setelah normal.', 'home', 'all', 'urgent', 'gangguan'],
+        tagihan: ['Pengingat Pembayaran 💳', 'Tagihan sewa bulan ini mendekati jatuh tempo. Silakan cek Tagihan & konfirmasi ke WhatsApp pengelola.', 'portal', 'member', 'normal', 'tagihan']
+      };
+      const value = templates[kind] || templates.info;
+      titleEl.value = value[0];
+      bodyEl.value = value[1];
+      if (targetEl) targetEl.value = value[2];
+      if (audienceEl) audienceEl.value = value[3];
+      if (priorityEl) priorityEl.value = value[4];
+      if (tagEl) tagEl.value = value[5];
+      updatePushPreview();
+    }
+
+    function updatePushPreview() {
+      const title = document.getElementById('pushTitle');
+      const body = document.getElementById('pushBody');
+      const titlePreview = document.getElementById('pushPreviewTitle');
+      const bodyPreview = document.getElementById('pushPreviewBody');
+      if (titlePreview) titlePreview.textContent = (title && title.value.trim()) || 'Judul banner';
+      if (bodyPreview) bodyPreview.textContent = (body && body.value.trim()) || 'Isi banner akan tampil di sini.';
+    }
+
+    async function sendPushBroadcast() {
+      const title = document.getElementById('pushTitle').value.trim();
+      const bodyText = document.getElementById('pushBody').value.trim();
+      const tokenInput = document.getElementById('pushAdminToken');
+      const token = tokenInput ? tokenInput.value.trim() : '';
+      const resultEl = document.getElementById('pushSendResult');
+      if (!title || !bodyText) {
+        showToast('Judul dan isi banner wajib diisi.', 'warning');
+        return;
+      }
+      if (!token) {
+        showToast('Isi Kunci Admin Push (PUSH_ADMIN_TOKEN) terlebih dahulu.', 'warning');
+        return;
+      }
+      const targetValue = document.getElementById('pushTarget').value;
+      const targetPath = targetValue === 'home' ? '/' : `/?tab=${encodeURIComponent(targetValue)}`;
+      const url = new URL(targetPath, location.origin + '/').href;
+      const payload = {
+        action: 'send',
+        token,
+        title,
+        body: bodyText,
+        audience: document.getElementById('pushAudience').value,
+        priority: document.getElementById('pushPriority').value,
+        tag: document.getElementById('pushTag').value.trim() || 'portal-kos',
+        url
+      };
+      if (resultEl) resultEl.textContent = 'Mengirim…';
+      try {
+        const res = await fetch('api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok) {
+          const message = (data && data.error) || `HTTP ${res.status}`;
+          if (resultEl) resultEl.textContent = `❌ Gagal: ${message}`;
+          showToast(`Gagal mengirim banner: ${message}`, 'error');
+          return;
+        }
+        try { localStorage.setItem('pushAdminToken', token); } catch (err) { /* abaikan */ }
+        const summary = `✅ Terkirim ${data.sent || 0}/${data.total || 0} • gagal ${data.failed || 0} • dibersihkan ${data.removed || 0}`;
+        if (resultEl) resultEl.textContent = summary;
+        showToast(summary, 'success');
+        refreshPushAdminStats(true);
+      } catch (err) {
+        if (resultEl) resultEl.textContent = `❌ Gagal: ${err && err.message ? err.message : 'jaringan error'}`;
+        showToast(`Gagal mengirim banner: ${err && err.message ? err.message : 'jaringan error'}`, 'error');
+      }
+    }
+
+    function initPushAdminControls() {
+      const tokenInput = document.getElementById('pushAdminToken');
+      if (tokenInput) {
+        try { tokenInput.value = localStorage.getItem('pushAdminToken') || ''; } catch (err) { /* abaikan */ }
+        tokenInput.addEventListener('change', () => {
+          try { localStorage.setItem('pushAdminToken', tokenInput.value.trim()); } catch (err) { /* abaikan */ }
+        });
+      }
+      ['pushTitle', 'pushBody'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updatePushPreview);
+      });
+      updatePushPreview();
+    }
+
     function notifyMemberDue(tenant) {
       if (!tenant || !tenant.pwaMemberSubscribed) return;
       const key = `kosDueNotify:${tenant.username}:${toISODateLocal(new Date())}`;
@@ -2712,6 +3182,7 @@
       const tenant = ensureTenantFinanceFields(
         registeredTenants.find(t => t.username === currentSession.username) || currentSession
       );
+      updateBillingWaConfirmLink();
       const days = getTenantDueDays(tenant);
       if (days === null) {
         bar.classList.add('hidden');
@@ -3507,6 +3978,7 @@
         document.getElementById('billingDueDate').textContent = formatDateID(currentSession.nextDueDate);
         document.getElementById('wifiUserDisplay').textContent = currentSession.username;
         document.getElementById('wifiPassDisplay').textContent = currentSession.wifiPassword || 'kos#' + currentSession.pin;
+        updateBillingWaConfirmLink();
       } else {
         document.getElementById('billingRoomName').textContent = 'Semua Unit (7 Kamar)';
         document.getElementById('billingTenantName').textContent = 'Pengelola Kos';
@@ -3528,7 +4000,9 @@
       updatePendingBanner(false);
       updateMircUnreadIndicators();
 
+      updateVisitorPushButton();
       if (currentSession.role === 'tenant') {
+        registerPushSubscriptionForMember(currentSession.username).catch(() => {});
         syncMircFromServer()
           .catch(() => {})
           .then(() => checkMemberWelcomeNotification());
@@ -3563,6 +4037,7 @@
 
     function logoutPortal() {
       stopKosRadioPlayback();
+      downgradePushToVisitor().catch(() => {});
       currentSession = null;
       clearPortalSession();
       hidePendingBanner();
@@ -3683,6 +4158,7 @@
       if (viewName === 'radar') renderNearbyLocations();
       if (viewName === 'billing') {
         applyBillingViewForSession();
+        updateBillingWaConfirmLink();
         if (!currentSession || currentSession.role === 'tenant') {
           renderAccountCard();
           renderPaymentLogs();
@@ -3690,31 +4166,6 @@
         }
       }
       renderPaymentBar();
-    }
-
-    function confirmBillingViaChat() {
-      if (!currentSession) return;
-      switchInternalSubView('mirc');
-      const pmTarget = '@AdminKos';
-      if (!mircChannels[pmTarget]) {
-        mircChannels[pmTarget] = { topic: 'Private Message dengan Pengelola Kos', messages: [] };
-      }
-      activeMircTab = pmTarget;
-      openedPrivateTabs.add(pmTarget);
-      hiddenMircTabs.delete(pmTarget);
-      saveHiddenMircTabs();
-      pushMircMessage(pmTarget, {
-        type: 'chat',
-        time: getNowTimeStr(),
-        nick: currentSession.nickname,
-        role: currentSession.role,
-        to: pmTarget,
-        text: `Halo Admin, saya ingin konfirmasi pembayaran sewa ${currentSession.roomName} (${currentSession.fullName}).`
-      });
-      renderMircChannels();
-      renderMircMessages();
-      queueStateSave();
-      showToast('Pesan konfirmasi dikirim ke PM @AdminKos!', 'success');
     }
 
     // ==================== 6. mIRC32 LIVE CHAT ENGINE ====================
@@ -4087,6 +4538,7 @@
     function renderAdminPanel() {
       renderPendingTenants();
       renderCashflowReport();
+      refreshPushAdminStats();
 
       // 0. Sync Site Brand, Logo & Footer Form Values
       const brandTitleInput = document.getElementById('adminBrandTitle');
@@ -4248,7 +4700,7 @@
               <div class="text-blue-900 font-mono-code text-[11px] mt-0.5">📶 Wi-Fi User: <strong>${escapeHtml(t.username)}</strong> | Pass: <strong>${escapeHtml(t.wifiPassword || '-')}</strong> (Max 2)</div>
             </div>
             <div class="flex flex-wrap items-center gap-1.5">
-              <button type="button" onclick="recordTenantPayment('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✅ Catat Lunas (+1 Bulan)</button>
+              <button type="button" onclick="openRecordPaymentModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✅ Catat Lunas (+1 Bulan)</button>
               <button type="button" onclick="openPaymentLogsModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold">🧾 Log Pembayaran</button>
               <button type="button" onclick="openBillingPeriodsModal('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-950 font-bold">📚 Atur Tagihan</button>
               <button type="button" onclick="regenerateTenantWifiPass('${t.username}')" class="px-2.5 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold" title="Acak Ulang Password Wi-Fi Kamar">🔑 Reset Pass Wi-Fi</button>
@@ -4745,7 +5197,7 @@
       const isAlumni = kind === 'alumni';
       const rows = [[
         'Nama Lengkap', 'Kamar', 'Username', 'No. HP', 'No. Darurat', 'Tanggal Masuk',
-        'Tanggal Check-Out / Jatuh Tempo', 'Tarif Bulanan', 'Status Pembayaran / Piutang', 'Total Riwayat Pembayaran'
+        'Tanggal Check-Out / Jatuh Tempo', 'Tarif Bulanan', 'Status Pembayaran / Piutang', 'Total Riwayat Pembayaran', 'Metode Terakhir'
       ]];
 
       if (isAlumni) {
@@ -4756,7 +5208,8 @@
           rows.push([
             entry.fullName, entry.roomName, entry.username, entry.phone, entry.emergencyPhone,
             entry.joinDate || '-', entry.checkoutDate || '-',
-            parseRupiahNumber(entry.billingAmount), status, totalPaymentLogAmount(entry)
+            parseRupiahNumber(entry.billingAmount), status, totalPaymentLogAmount(entry),
+            (Array.isArray(entry.paymentLogs) && entry.paymentLogs[0] && entry.paymentLogs[0].method) || '-'
           ]);
         });
       } else {
@@ -4769,7 +5222,8 @@
           rows.push([
             tenant.fullName, tenant.roomName, tenant.username, tenant.phone, tenant.emergencyPhone,
             tenant.joinDate || '-', formatDateID(tenant.nextDueDate),
-            parseRupiahNumber(tenant.billingAmount), status, totalPaymentLogAmount(tenant)
+            parseRupiahNumber(tenant.billingAmount), status, totalPaymentLogAmount(tenant),
+            (tenant.paymentLogs[0] && tenant.paymentLogs[0].method) || '-'
           ]);
         });
       }
@@ -4946,7 +5400,7 @@
                   <td class="px-2 py-2">${tenantPaymentStatusBadge(tenant)}</td>
                   <td class="px-2 py-2">
                     <div class="flex flex-wrap gap-1">
-                      <button type="button" onclick="recordTenantPayment('${tenant.username}')" class="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✅ Tandai Lunas</button>
+                      <button type="button" onclick="openRecordPaymentModal('${tenant.username}')" class="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold">✅ Tandai Lunas</button>
                       <a href="${buildTenantReminderWa(tenant)}" target="_blank" class="px-2 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold">📲 Pengingat WA</a>
                     </div>
                   </td>
@@ -5019,7 +5473,40 @@
       return `<span class="font-bold text-emerald-700">${days} hari lagi</span>`;
     }
 
-    async function recordTenantPayment(username) {
+    let recordPaymentActiveUser = null;
+
+    function openRecordPaymentModal(username) {
+      const tenant = registeredTenants.find(t => t.username === username);
+      if (!tenant) return;
+      ensureTenantFinanceFields(tenant);
+      recordPaymentActiveUser = username;
+      document.getElementById('recordPaymentTitle').textContent = `Catat Pembayaran: ${tenant.fullName} (${tenant.roomName})`;
+      document.getElementById('recordPaymentMethod').value = 'Cash';
+      document.getElementById('recordPaymentAmount').value = parseRupiahNumber(tenant.billingAmount) || '';
+      document.getElementById('recordPaymentDate').value = toISODateLocal(new Date());
+      document.getElementById('recordPaymentNote').value = '';
+      document.getElementById('recordPaymentModal').classList.remove('hidden');
+    }
+
+    function closeRecordPaymentModal() {
+      const modal = document.getElementById('recordPaymentModal');
+      if (modal) modal.classList.add('hidden');
+      recordPaymentActiveUser = null;
+    }
+
+    async function submitRecordPaymentForm(e) {
+      e.preventDefault();
+      const username = recordPaymentActiveUser;
+      if (!username) return;
+      const method = document.getElementById('recordPaymentMethod').value === 'Transfer' ? 'Transfer' : 'Cash';
+      const amount = parseInt(document.getElementById('recordPaymentAmount').value, 10) || 0;
+      const paidDate = document.getElementById('recordPaymentDate').value || toISODateLocal(new Date());
+      const note = document.getElementById('recordPaymentNote').value.trim();
+      closeRecordPaymentModal();
+      await recordTenantPayment(username, { method, amount, paidDate, note });
+    }
+
+    async function recordTenantPayment(username, options = {}) {
       await pullLatestStateBeforeMutation();
       const tenant = registeredTenants.find(t => t.username === username);
       if (!tenant) {
@@ -5028,24 +5515,29 @@
       }
       ensureTenantFinanceFields(tenant);
 
+      const method = options.method === 'Transfer' ? 'Transfer' : 'Cash';
+      const paidDate = options.paidDate || toISODateLocal(new Date());
+      const amount = options.amount > 0 ? Number(options.amount) : parseRupiahNumber(tenant.billingAmount);
+      const note = (options.note || '').trim();
+
       const dueKey = String(tenant.nextDueDate || '').slice(0, 7);
       const targetPeriod = (tenant.billingPeriods || []).find(p => p.status !== 'paid' && p.period === dueKey)
         || (tenant.billingPeriods || []).find(p => p.status !== 'paid');
       if (targetPeriod) {
         targetPeriod.status = 'paid';
-        targetPeriod.paidDate = toISODateLocal(new Date());
-        if (!targetPeriod.amount) targetPeriod.amount = parseRupiahNumber(tenant.billingAmount);
+        targetPeriod.paidDate = paidDate;
+        targetPeriod.method = method;
+        if (!targetPeriod.amount) targetPeriod.amount = amount;
       }
 
-      const period = formatPeriodID(tenant.nextDueDate);
-      const amount = parseRupiahNumber(tenant.billingAmount);
+      const period = targetPeriod ? monthKeyToLabel(targetPeriod.period) : formatPeriodID(tenant.nextDueDate);
       tenant.paymentLogs.unshift({
         id: 'PAY' + Date.now(),
         period,
         amount,
-        paidDate: toISODateLocal(new Date()),
-        method: 'Admin (Tunai/Transfer)',
-        note: ''
+        paidDate,
+        method,
+        note
       });
       tenant.nextDueDate = addMonthsISO(tenant.nextDueDate, 1);
 
@@ -5184,11 +5676,17 @@
               <input type="date" data-bp-due value="${escapeHtml(p.dueDate || '')}" class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white" />
             </label>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
             <label class="block font-bold text-stone-600">Status
               <select data-bp-status class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white">
                 <option value="unpaid" ${p.status === 'paid' ? '' : 'selected'}>Belum Lunas</option>
                 <option value="paid" ${p.status === 'paid' ? 'selected' : ''}>Lunas</option>
+              </select>
+            </label>
+            <label class="block font-bold text-stone-600">Metode
+              <select data-bp-method class="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white">
+                <option value="Cash" ${p.method === 'Transfer' ? '' : 'selected'}>Cash</option>
+                <option value="Transfer" ${p.method === 'Transfer' ? 'selected' : ''}>Transfer</option>
               </select>
             </label>
             <label class="block font-bold text-stone-600">Tanggal Lunas
@@ -5251,6 +5749,7 @@
       const amount = parseInt(row.querySelector('[data-bp-amount]').value, 10) || 0;
       const dueDate = row.querySelector('[data-bp-due]').value;
       const status = row.querySelector('[data-bp-status]').value === 'paid' ? 'paid' : 'unpaid';
+      const method = row.querySelector('[data-bp-method]').value === 'Transfer' ? 'Transfer' : 'Cash';
       let paidDate = row.querySelector('[data-bp-paid]').value;
       const note = row.querySelector('[data-bp-note]').value.trim();
       if (!/^\d{4}-\d{2}$/.test(periodKey)) {
@@ -5263,6 +5762,7 @@
       period.amount = amount;
       period.dueDate = dueDate || period.dueDate;
       period.status = status;
+      period.method = method;
       period.paidDate = status === 'paid' ? paidDate : '';
       period.note = note;
 
@@ -5274,7 +5774,7 @@
             period: monthKeyToLabel(periodKey),
             amount,
             paidDate: period.paidDate,
-            method: 'Buku Tagihan Admin',
+            method,
             note
           });
         }
@@ -5297,6 +5797,7 @@
       if (!period) return;
       period.status = 'paid';
       period.paidDate = toISODateLocal(new Date());
+      period.method = period.method === 'Transfer' ? 'Transfer' : 'Cash';
       if (!period.amount) period.amount = parseRupiahNumber(tenant.billingAmount);
 
       const autoLogId = 'BPP-' + tenant.username + '-' + period.period;
@@ -5306,7 +5807,7 @@
           period: monthKeyToLabel(period.period),
           amount: Number(period.amount) || 0,
           paidDate: period.paidDate,
-          method: 'Buku Tagihan Admin',
+          method: period.method || 'Transfer',
           note: period.note || ''
         });
       }
@@ -5352,7 +5853,8 @@
         const dueDate = period ? period.dueDate : (String(tenant.nextDueDate || '').slice(0, 7) === month ? tenant.nextDueDate : '');
         const amount = period ? Number(period.amount) || 0 : (String(tenant.nextDueDate || '').slice(0, 7) === month ? parseRupiahNumber(tenant.billingAmount) : 0);
         const status = period ? (period.status === 'paid' ? 'paid' : 'unpaid') : (income > 0 ? 'paid' : 'none');
-        return { tenant, period, income, amount, dueDate, status };
+        const incomeMethod = logs.length ? (logs[0].method || '-') : '-';
+        return { tenant, period, income, incomeMethod, amount, dueDate, status };
       });
     }
 
@@ -5371,6 +5873,21 @@
       const outstanding = rows.reduce((sum, row) => sum + (row.status === 'unpaid' ? row.amount : 0), 0);
       const paidCount = rows.filter(row => row.status === 'paid').length;
       const unpaidCount = rows.filter(row => row.status === 'unpaid').length;
+      let cashIncome = 0;
+      let transferIncome = 0;
+      rows.forEach(row => {
+        (row.tenant.paymentLogs || [])
+          .filter(log => String(log.paidDate || '').slice(0, 7) === month)
+          .forEach(log => {
+            const amount = Number(log.amount) || 0;
+            if (log.method === 'Transfer') transferIncome += amount;
+            else cashIncome += amount;
+          });
+      });
+      const breakdownEl = document.getElementById('cashflowMethodBreakdown');
+      if (breakdownEl) {
+        breakdownEl.textContent = `Rincian metode: Cash ${formatRupiah(cashIncome)} • Transfer (Dana/BRI) ${formatRupiah(transferIncome)}`;
+      }
 
       const card = (label, value, sub, cls) => `
         <div class="rounded-xl border p-3 ${cls}">
@@ -5406,6 +5923,7 @@
               <th class="px-2 py-2">Jatuh Tempo</th>
               <th class="px-2 py-2">Status</th>
               <th class="px-2 py-2">Kas Masuk (Tgl Bayar)</th>
+              <th class="px-2 py-2">Metode</th>
               <th class="px-2 py-2">Aksi</th>
             </tr>
           </thead>
@@ -5418,6 +5936,7 @@
                 <td class="px-2 py-2">${row.dueDate ? formatDateID(row.dueDate) : '-'}</td>
                 <td class="px-2 py-2">${statusBadge(row.status)}</td>
                 <td class="px-2 py-2 font-mono-code text-emerald-800">${formatRupiah(row.income)}</td>
+                <td class="px-2 py-2">${escapeHtml(row.incomeMethod)}</td>
                 <td class="px-2 py-2">
                   <div class="flex flex-wrap gap-1">
                     <button type="button" onclick="openBillingPeriodsModal('${row.tenant.username}')" class="px-2 py-1 rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-950 font-bold">📚 Tagihan</button>
@@ -5846,6 +6365,8 @@
         document.getElementById('loginPin').value.trim()
       );
     });
+
+    document.getElementById('recordPaymentForm').addEventListener('submit', submitRecordPaymentForm);
 
     document.getElementById('regKtpInput').addEventListener('change', function (e) {
       if (!e.target.files[0]) return;
@@ -6613,7 +7134,11 @@
       registerStateAutoSave();
       initAdminCardControls();
       initAdminCardDragAndDrop();
+      initPushAdminControls();
       refreshDynamicViews();
+      ensurePushServiceWorker()
+        .then(() => updateVisitorPushButton())
+        .catch(() => {});
 
       setInterval(() => {
         const clk = document.getElementById('mircClock');
@@ -6640,6 +7165,8 @@
         .then(() => {
           refreshDynamicViews();
           restorePortalSession();
+          const requestedTab = new URLSearchParams(location.search).get('tab');
+          if (requestedTab) switchMainTab(requestedTab);
         })
         .catch(() => {
           /* tetap tampil dengan data default */

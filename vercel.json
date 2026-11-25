@@ -2,6 +2,7 @@
   "functions": {
     "api/state.js": { "memory": 1024, "maxDuration": 30 },
     "api/radio.js": { "memory": 512, "maxDuration": 30 },
-    "api/mirc.js": { "memory": 512, "maxDuration": 30 }
+    "api/mirc.js": { "memory": 512, "maxDuration": 30 },
+    "api/push.js": { "memory": 512, "maxDuration": 60 }
   }
 }

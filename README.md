@@ -59,3 +59,22 @@ Semua perubahan dari Panel Admin (identitas brand/logo, running text, kamar, pro
 Tabel `portal_state` dibuat otomatis pada request pertama. Simpan berjalan otomatis sekitar 0,7 detik setelah aksi terakhir, dan data dimuat lagi saat halaman dibuka. Stasiun radio tetap memakai tabel `radio_stations` sendiri.
 
 Catatan: payload state dibatasi 4 MB. Foto WebP (logo, KTP, promo) ikut tersimpan di state, jadi hindari mengunggah banyak foto beresolusi besar sekaligus.
+
+### Pembayaran Manual (Cash / Transfer / Dana / BRI)
+
+Penghuni melihat instruksi pembayaran di tab **Tagihan & Wi-Fi**:
+
+`Pembayaran : Cash / via Dana 08568577633 / Rek. BRI an. 308101019983533`
+
+Konfirmasi diarahkan ke WhatsApp `08568577633`. Admin mencatat pembayaran lewat tombol **Catat Lunas** dengan pilihan metode **Cash** atau **Transfer**; metode tersimpan di log pembayaran, cashflow, dan export CSV.
+
+### Web Push (Banner Notifikasi)
+
+`sw.js` dan `api/push.js` mengirim banner ke HP subscriber (termasuk pengunjung tanpa login). Siapkan environment:
+
+1. Buat kunci: `npx web-push generate-vapid-keys`.
+2. Isi `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, dan `PUSH_ADMIN_TOKEN` di Vercel → Environment Variables, lalu redeploy.
+3. Pengunjung menekan **🔔 Aktifkan Info Kos** di beranda dan memberi izin notifikasi.
+4. Admin mengirim banner dari Panel Admin → **📢 Notifikasi Push & Banner** (isi Kunci Admin Push sama dengan `PUSH_ADMIN_TOKEN`).
+
+Tabel `push_subscriptions` dibuat otomatis. Subscription kedaluwarsa (404/410) dibersihkan otomatis saat pengiriman. Di iPhone, push hanya berjalan setelah situs ditambahkan ke Home Screen (iOS 16.4+); izin notifikasi tidak bisa dipaksa.
