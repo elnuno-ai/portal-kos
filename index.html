@@ -1700,6 +1700,7 @@
 
     let registeredTenants = window.PORTAL_DATA.registeredTenants;
     let pendingTenants = Array.isArray(window.PORTAL_DATA.pendingTenants) ? window.PORTAL_DATA.pendingTenants : [];
+    let pendingTenantRemovals = [];
 
     let alumniArchive = [];
 
@@ -1914,6 +1915,7 @@
         nearbyLocations,
         registeredTenants,
         pendingTenants,
+        pendingTenantRemovals,
         guestbookEntries,
         mircChannels,
         promos,
@@ -2113,7 +2115,13 @@
       if (Array.isArray(state.rooms)) rooms = state.rooms;
       if (Array.isArray(state.nearbyLocations)) nearbyLocations = state.nearbyLocations;
       if (Array.isArray(state.registeredTenants)) registeredTenants = state.registeredTenants;
-      if (Array.isArray(state.pendingTenants)) pendingTenants = state.pendingTenants;
+      if (Array.isArray(state.pendingTenantRemovals)) {
+        pendingTenantRemovals = [...new Set([...pendingTenantRemovals, ...state.pendingTenantRemovals])].slice(-200);
+      }
+      if (Array.isArray(state.pendingTenants)) {
+        const removed = new Set(pendingTenantRemovals);
+        pendingTenants = state.pendingTenants.filter(item => item && !removed.has(item.id));
+      }
       if (Array.isArray(state.guestbookEntries)) guestbookEntries = state.guestbookEntries;
       if (state.mircChannels && typeof state.mircChannels === 'object') mircChannels = state.mircChannels;
       if (Array.isArray(state.promos)) promos = state.promos;
@@ -2238,12 +2246,20 @@
       return { ok: false, status, message };
     }
 
+    function recordPendingRemoval(id) {
+      if (!id) return;
+      if (!pendingTenantRemovals.includes(id)) {
+        pendingTenantRemovals.push(id);
+        if (pendingTenantRemovals.length > 200) pendingTenantRemovals = pendingTenantRemovals.slice(-200);
+      }
+    }
+
     async function savePortalState() {
       const state = getPortalStateSnapshot();
       const json = JSON.stringify(state);
       if (json === lastSavedStateJson) return true;
 
-      const body = JSON.stringify({ state });
+      const body = JSON.stringify({ state, removedPendingIds: pendingTenantRemovals });
       let bytes = body.length;
       try { bytes = new TextEncoder().encode(body).length; } catch (err) { /* perkiraan */ }
 
@@ -2490,10 +2506,49 @@
       const amount = parseRupiahNumber(tenant.billingAmount);
       const today = toISODateLocal(new Date());
 
-      (tenant.paymentLogs || []).forEach(log => {
-        const key = monthKeyFromLabel(log.period) || String(log.paidDate || '').slice(0, 7);
+      // Satu periode bulanan hanya boleh muncul sekali (bersihkan duplikat lama).
+      const uniquePeriods = new Map();
+      tenant.billingPeriods.forEach(period => {
+        if (!period || !/^\d{4}-\d{2}$/.test(String(period.period || ''))) return;
+        const key = String(period.period);
+        const existing = uniquePeriods.get(key);
+        if (!existing || (existing.status !== 'paid' && period.status === 'paid')) {
+          uniquePeriods.set(key, period);
+        }
+      });
+      tenant.billingPeriods = [...uniquePeriods.values()]
+        .sort((a, b) => String(a.period).localeCompare(String(b.period)));
+
+      const logs = Array.isArray(tenant.paymentLogs) ? tenant.paymentLogs : (tenant.paymentLogs = []);
+      const logPeriodKey = log => monthKeyFromLabel(log && log.period) || String((log && log.paidDate) || '').slice(0, 7);
+      const manualLogKeys = new Set(
+        logs
+          .filter(log => log && !String(log.id || '').startsWith('BPP-'))
+          .map(logPeriodKey)
+          .filter(key => /^\d{4}-\d{2}$/.test(key || ''))
+      );
+      // Log otomatis dari Buku Tagihan tidak boleh menggandakan pembayaran manual.
+      tenant.paymentLogs = logs.filter(log => {
+        if (!log) return false;
+        if (String(log.id || '').startsWith('BPP-')) {
+          const key = logPeriodKey(log);
+          if (key && manualLogKeys.has(key)) return false;
+        }
+        return true;
+      });
+
+      tenant.paymentLogs.forEach(log => {
+        const key = logPeriodKey(log);
         if (!/^\d{4}-\d{2}$/.test(key || '')) return;
-        if (tenant.billingPeriods.some(p => p.period === key)) return;
+        const existingPeriod = tenant.billingPeriods.find(p => p.period === key);
+        if (existingPeriod) {
+          if (existingPeriod.status !== 'paid') {
+            existingPeriod.status = 'paid';
+            existingPeriod.paidDate = log.paidDate || today;
+          }
+          if (!existingPeriod.amount) existingPeriod.amount = Number(log.amount) || amount;
+          return;
+        }
         tenant.billingPeriods.push({
           id: 'BP-' + key,
           period: key,
@@ -2520,6 +2575,14 @@
 
       tenant.billingPeriods.sort((a, b) => String(a.period).localeCompare(String(b.period)));
       return tenant.billingPeriods;
+    }
+
+    function paymentLogPeriodKey(log) {
+      return monthKeyFromLabel(log && log.period) || String((log && log.paidDate) || '').slice(0, 7);
+    }
+
+    function hasPaymentLogForPeriod(tenant, periodKey) {
+      return (tenant.paymentLogs || []).some(log => paymentLogPeriodKey(log) === periodKey);
     }
 
     function ensureTenantFinanceFields(tenant) {
@@ -4554,6 +4617,7 @@
       delete tenant.requestedAtLabel;
       ensureTenantFinanceFields(tenant);
 
+      recordPendingRemoval(pending.id);
       pendingTenants.splice(idx, 1);
       registeredTenants.push(tenant);
       if (room) {
@@ -4599,6 +4663,7 @@
         return;
       }
       const pending = pendingTenants[idx];
+      recordPendingRemoval(pending.id);
       pendingTenants.splice(idx, 1);
 
       const stillPending = pendingTenants.some(item => item.roomId === pending.roomId);
@@ -5203,7 +5268,7 @@
 
       const autoLogId = 'BPP-' + tenant.username + '-' + periodKey;
       if (status === 'paid') {
-        if (!tenant.paymentLogs.some(log => log.id === autoLogId)) {
+        if (!hasPaymentLogForPeriod(tenant, periodKey)) {
           tenant.paymentLogs.unshift({
             id: autoLogId,
             period: monthKeyToLabel(periodKey),
@@ -5235,7 +5300,7 @@
       if (!period.amount) period.amount = parseRupiahNumber(tenant.billingAmount);
 
       const autoLogId = 'BPP-' + tenant.username + '-' + period.period;
-      if (!tenant.paymentLogs.some(log => log.id === autoLogId)) {
+      if (!hasPaymentLogForPeriod(tenant, period.period)) {
         tenant.paymentLogs.unshift({
           id: autoLogId,
           period: monthKeyToLabel(period.period),

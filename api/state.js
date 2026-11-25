@@ -100,21 +100,72 @@ module.exports = async function handler(req, res) {
       return res.status(422).json({ ok: false, error: 'Payload state tidak valid.' });
     }
 
-    const json = JSON.stringify(state);
-    const jsonBytes = Buffer.byteLength(json);
-    if (jsonBytes > MAX_BODY_BYTES) {
-      return res.status(413).json({
-        ok: false,
-        error: `Data state terlalu besar (${(jsonBytes / 1024 / 1024).toFixed(2)} MB). Maksimal ${(MAX_BODY_BYTES / 1024 / 1024).toFixed(0)} MB. Kecilkan foto/gambar.`,
-      });
-    }
+    const suppliedRemovals = Array.isArray(body.removedPendingIds) ? body.removedPendingIds : [];
+    const client = await p.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: existingRows } = await client.query(
+        'SELECT data FROM portal_state WHERE id=1 FOR UPDATE'
+      );
+      const existing = existingRows.length ? existingRows[0].data : null;
 
-    await p.query(
-      `INSERT INTO portal_state(id, data, updated_at) VALUES (1, $1::jsonb, now())
-       ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
-      [json]
-    );
-    return res.status(200).json({ ok: true, bytes: jsonBytes });
+      if (existing && typeof existing === 'object') {
+        const tombstoneSet = new Set([
+          ...(Array.isArray(existing.pendingTenantRemovals) ? existing.pendingTenantRemovals : []),
+          ...(Array.isArray(state.pendingTenantRemovals) ? state.pendingTenantRemovals : []),
+          ...suppliedRemovals,
+        ].filter(Boolean));
+        if (tombstoneSet.size > 200) {
+          const trimmed = [...tombstoneSet].slice(-200);
+          tombstoneSet.clear();
+          trimmed.forEach(id => tombstoneSet.add(id));
+        }
+
+        const incomingPending = (Array.isArray(state.pendingTenants) ? state.pendingTenants : [])
+          .filter(item => item && !tombstoneSet.has(item.id));
+        const incomingIds = new Set(incomingPending.map(item => item.id));
+        const preservedPending = (Array.isArray(existing.pendingTenants) ? existing.pendingTenants : [])
+          .filter(item => item && !tombstoneSet.has(item.id) && !incomingIds.has(item.id));
+
+        state.pendingTenants = [...preservedPending, ...incomingPending];
+        state.pendingTenantRemovals = [...tombstoneSet];
+
+        if (preservedPending.length && Array.isArray(state.rooms)) {
+          const roomsById = new Map(state.rooms.filter(Boolean).map(room => [room.id, room]));
+          preservedPending.forEach(pending => {
+            const room = roomsById.get(pending.roomId);
+            if (room && room.status === 'available') {
+              room.status = 'pending';
+              room.tenant = pending.fullName;
+            }
+          });
+        }
+      }
+      delete body.removedPendingIds;
+
+      const json = JSON.stringify(state);
+      const jsonBytes = Buffer.byteLength(json);
+      if (jsonBytes > MAX_BODY_BYTES) {
+        await client.query('ROLLBACK');
+        return res.status(413).json({
+          ok: false,
+          error: `Data state terlalu besar (${(jsonBytes / 1024 / 1024).toFixed(2)} MB). Maksimal ${(MAX_BODY_BYTES / 1024 / 1024).toFixed(0)} MB. Kecilkan foto/gambar.`,
+        });
+      }
+
+      await client.query(
+        `INSERT INTO portal_state(id, data, updated_at) VALUES (1, $1::jsonb, now())
+         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
+        [json]
+      );
+      await client.query('COMMIT');
+      return res.status(200).json({ ok: true, bytes: jsonBytes });
+    } catch (txErr) {
+      try { await client.query('ROLLBACK'); } catch (rollbackErr) { /* abaikan */ }
+      throw txErr;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     const detail = (err && (err.message || String(err))) || 'Gagal menyimpan state.';
     console.error('[state] save failed:', detail, err && err.code ? `(code ${err.code})` : '', err && err.stack);
