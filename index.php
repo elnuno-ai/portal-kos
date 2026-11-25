@@ -1417,8 +1417,8 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
   <!-- FOOTER -->
   <footer class="bg-stone-900 text-stone-400 text-xs py-6 px-4 mt-12 border-t border-stone-800">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-      <div id="siteFooterLeft"><span class="text-stone-200 font-bold">Ekosistem Hub • Kos Inu Kerta & Pondhok Dhahar "Sedhah Ayu"</span> — Secang, Kab. Magelang.</div>
-      <div id="siteFooterRight" class="text-stone-500">MikroTik RB750Gr3 Ready • WebP Compressed • PWA + mIRC32 Live Sync</div>
+      <div id="siteFooterLeft"><span class="text-stone-200 font-bold">Ekosistem Terpadu"</span> — Warung Makan, Toko & Kosan.</div>
+      <div id="siteFooterRight" class="text-stone-500">— Gintung, Jambewangi, Magelang.</div>
     </div>
   </footer>
 
@@ -1813,7 +1813,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
 
         const waMsg = encodeURIComponent(`Halo Mas Inu, saya tertarik survei/pesan ${room.name} (${pricing.formattedActive}/bln). Apakah masih tersedia?`);
         const actionBtn = room.status === 'available'
-          ? `<a href="https://wa.me/6281234567890?text=${waMsg}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm">📲 Pesan / Survei via WA</a>`
+          ? `<a href="https://wa.me/628568577633?text=${waMsg}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm">📲 Pesan / Survei via WA</a>`
           : `<button disabled class="w-full py-2.5 rounded-xl bg-stone-100 text-stone-400 font-bold text-xs cursor-not-allowed">${room.status === 'occupied' ? 'Unit Sedang Terisi' : 'Dalam Perbaikan / Renovasi'}</button>`;
 
         return `
@@ -1870,7 +1870,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
               </div>
             </div>
             <div class="p-4 pt-0">
-              <a href="https://wa.me/6281234567890?text=${waText}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs transition">
+              <a href="https://wa.me/6281332677678?text=${waText}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs transition">
                 🍛 Pesan Menu Ini
               </a>
             </div>

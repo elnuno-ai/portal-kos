@@ -96,6 +96,14 @@
       animation: flashTab 1.1s infinite;
       font-weight: bold;
     }
+    @keyframes flashSubTab {
+      0%, 100% { background-color: #1c1917; color: #ffffff; }
+      50% { background-color: #f59e0b; color: #1c1917; }
+    }
+    .mirc-subtab-unread {
+      animation: flashSubTab 1s infinite;
+      font-weight: bold;
+    }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -1710,6 +1718,7 @@
     // mIRC32 State
     let mircChannels = window.PORTAL_DATA.mircChannels;
     let activeMircTab = '#umum';
+    let currentInternalView = 'mirc';
     let unreadMircTabs = new Set();
     let mircSoundEnabled = true;
 
@@ -2016,10 +2025,46 @@
 
     let mircSyncInFlight = false;
 
+    let lastMircToastAt = 0;
+
+    function isMircViewVisible() {
+      if (!currentSession || currentMainTab !== 'portal' || currentInternalView !== 'mirc') return false;
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      const view = document.getElementById('internal-mirc');
+      return !!view && !view.classList.contains('hidden');
+    }
+
+    function updateMircUnreadIndicators() {
+      const hasUnread = unreadMircTabs.size > 0;
+      const subBtn = document.querySelector('[data-subview="mirc"]');
+      if (subBtn) subBtn.classList.toggle('mirc-subtab-unread', hasUnread);
+      const navBtn = document.querySelector('[data-tab-key="portal"]');
+      if (navBtn) navBtn.classList.toggle('mirc-tab-unread', hasUnread);
+    }
+
+    function notifyIncomingMirc(addedCounts) {
+      const channels = Object.keys(addedCounts);
+      if (!channels.length) return;
+      const channel = channels[0];
+      const messages = (mircChannels[channel] && mircChannels[channel].messages) || [];
+      const last = messages[messages.length - 1] || {};
+      const preview = `${last.nick || 'sistem'}: ${String(last.text || '').slice(0, 90)}`;
+      const now = Date.now();
+      if (!isMircViewVisible() && now - lastMircToastAt > 2500) {
+        lastMircToastAt = now;
+        showToast(`💬 Pesan baru di ${channel}`, 'info');
+      }
+      if (typeof document !== 'undefined' && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(`mIRC32 • ${channel}`, { body: preview });
+        } catch (err) { /* notifikasi opsional */ }
+      }
+      if (mircSoundEnabled) playMircBeep();
+    }
+
     async function syncMircFromServer() {
       if (mircSyncInFlight || !currentSession) return;
       if (typeof document !== 'undefined' && document.hidden) return;
-      if (currentMainTab !== 'portal') return;
 
       mircSyncInFlight = true;
       try {
@@ -2034,13 +2079,16 @@
         if (JSON.stringify(merged) === before) return;
 
         mircChannels = merged;
+        const viewingMirc = isMircViewVisible();
         Object.keys(addedCounts).forEach(channel => {
-          if (channel !== activeMircTab) unreadMircTabs.add(channel);
+          if (viewingMirc && channel === activeMircTab) return;
+          unreadMircTabs.add(channel);
         });
         renderMircChannels();
-        renderMircMessages();
+        if (viewingMirc) renderMircMessages();
         renderMircUserList();
-        if (Object.keys(addedCounts).length) playMircBeep();
+        updateMircUnreadIndicators();
+        if (Object.keys(addedCounts).length) notifyIncomingMirc(addedCounts);
       } catch (err) {
         /* sinkronisasi opsional, abaikan kegagalan jaringan */
       } finally {
@@ -2675,10 +2723,33 @@
       return message;
     }
 
+    async function postMircMessageToServer(channel, message) {
+      if (!channel || !message) return false;
+      const candidates = orderEndpointsByCache(MIRC_ENDPOINT_CACHE_KEY, ['api/mirc', 'php-api/mirc.php']);
+      for (const endpoint of candidates) {
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ channel, message })
+          });
+          if (!res.ok) continue;
+          const data = await res.json().catch(() => null);
+          if (data && data.ok) {
+            rememberEndpoint(MIRC_ENDPOINT_CACHE_KEY, endpoint);
+            return true;
+          }
+        } catch (err) { /* coba endpoint berikutnya */ }
+      }
+      return false;
+    }
+
     function pushMircMessage(channel, message) {
       if (!mircChannels[channel]) mircChannels[channel] = { topic: '', messages: [] };
       if (!Array.isArray(mircChannels[channel].messages)) mircChannels[channel].messages = [];
-      mircChannels[channel].messages.push(mircStamp(message));
+      const stamped = mircStamp(message);
+      mircChannels[channel].messages.push(stamped);
+      postMircMessageToServer(channel, stamped).catch(() => {});
       return mircChannels[channel].messages;
     }
 
@@ -2831,6 +2902,7 @@
 
       nav.innerHTML = html;
       renderAuthHeaderSlot();
+      updateMircUnreadIndicators();
     }
 
     function updateNavigationActiveState() {
@@ -2852,6 +2924,7 @@
           btn.className = `px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-bold shrink-0 transition ${active ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}`;
         }
       });
+      updateMircUnreadIndicators();
     }
 
     function renderAuthHeaderSlot() {
@@ -2884,9 +2957,14 @@
       updateNavigationActiveState();
       if (tabKey === 'admin') renderAdminPanel();
       if (tabKey === 'portal' && currentSession) {
+        if (currentInternalView === 'mirc') {
+          unreadMircTabs.delete(activeMircTab);
+          markMircWelcomeSeen();
+        }
         renderMircChannels();
         renderMircMessages();
         renderMircUserList();
+        updateMircUnreadIndicators();
         syncMircFromServer();
       }
       if (tabKey === 'admin' || tabKey === 'kos') syncStateFromServer();
@@ -3264,10 +3342,58 @@
       showToast(`Username "${value}" disalin!`, 'success');
     }
 
+    const PORTAL_SESSION_KEY = 'kosPortalSession';
+
+    function buildAdminSession() {
+      return { role: 'admin', username: 'admin', fullName: 'Inu Kerta (Admin)', nickname: '@AdminKos', roomName: 'Kantor Pengelola' };
+    }
+
+    function savePortalSession() {
+      if (!currentSession) return;
+      try {
+        localStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify({
+          role: currentSession.role,
+          username: currentSession.username,
+          savedAt: Date.now()
+        }));
+      } catch (err) { /* localStorage opsional */ }
+    }
+
+    function clearPortalSession() {
+      try { localStorage.removeItem(PORTAL_SESSION_KEY); } catch (err) { /* abaikan */ }
+    }
+
+    function restorePortalSession() {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(PORTAL_SESSION_KEY) || 'null'); } catch (err) { saved = null; }
+      if (!saved || !saved.role) return false;
+      if (saved.savedAt && Date.now() - Number(saved.savedAt) > 7 * 24 * 60 * 60 * 1000) {
+        clearPortalSession();
+        return false;
+      }
+
+      if (saved.role === 'admin') {
+        currentSession = buildAdminSession();
+      } else {
+        const tenant = registeredTenants.find(t => t.username === saved.username);
+        if (!tenant) {
+          clearPortalSession();
+          return false;
+        }
+        currentSession = { role: 'tenant', ...tenant, nickname: '+' + tenant.nickname };
+      }
+
+      activateLoggedInWorkspace();
+      if (currentSession.role === 'admin') switchMainTab('admin');
+      else switchMainTab('portal');
+      return true;
+    }
+
     function quickFillLogin(user, pin) {
       if (user === 'admin' && pin === '9999') {
-        currentSession = { role: 'admin', username: 'admin', fullName: 'Inu Kerta (Admin)', nickname: '@AdminKos', roomName: 'Kantor Pengelola' };
+        currentSession = buildAdminSession();
         activateLoggedInWorkspace();
+        savePortalSession();
         switchMainTab('admin');
         showToast('Masuk sebagai Admin Kos (@AdminKos)', 'success');
         return;
@@ -3291,6 +3417,7 @@
           } catch (err) { /* abaikan */ }
         }
         activateLoggedInWorkspace();
+        savePortalSession();
         switchMainTab('portal');
         showToast(`Selamat datang kembali, ${tenant.fullName}!`, 'success');
       } else {
@@ -3336,6 +3463,13 @@
       renderPaymentLogs();
       applyBillingViewForSession();
       updatePendingBanner(false);
+      updateMircUnreadIndicators();
+
+      if (currentSession.role === 'tenant') {
+        syncMircFromServer()
+          .catch(() => {})
+          .then(() => checkMemberWelcomeNotification());
+      }
     }
 
     function copyWifiCredential(type) {
@@ -3367,6 +3501,7 @@
     function logoutPortal() {
       stopKosRadioPlayback();
       currentSession = null;
+      clearPortalSession();
       hidePendingBanner();
       renderNavigationTabs();
       document.getElementById('portalAuthContainer').classList.remove('hidden');
@@ -3461,6 +3596,7 @@
     }
 
     function switchInternalSubView(viewName) {
+      currentInternalView = viewName;
       document.querySelectorAll('.internal-subview').forEach(v => v.classList.add('hidden'));
       const target = document.getElementById(`internal-${viewName}`);
       if (target) target.classList.remove('hidden');
@@ -3472,6 +3608,15 @@
           btn.className = 'internal-sub-btn px-2.5 py-1.5 rounded-xl text-[11px] sm:px-3.5 sm:py-2 sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 flex items-center gap-1.5';
         }
       });
+
+      if (viewName === 'mirc') {
+        unreadMircTabs.delete(activeMircTab);
+        markMircWelcomeSeen();
+        renderMircChannels();
+        renderMircMessages();
+        syncMircFromServer();
+      }
+      updateMircUnreadIndicators();
       if (viewName === 'radar') renderNearbyLocations();
       if (viewName === 'billing') {
         applyBillingViewForSession();
@@ -3510,6 +3655,48 @@
     }
 
     // ==================== 6. mIRC32 LIVE CHAT ENGINE ====================
+    function getMemberWelcomeMessages() {
+      if (!currentSession || currentSession.role !== 'tenant') return [];
+      const nick = currentSession.nickname || '';
+      const plainNick = nick.replace(/^\+/, '');
+      const list = (mircChannels['#umum'] && mircChannels['#umum'].messages) || [];
+      return list.filter(message =>
+        message && message.type === 'system' &&
+        /bergabung|selamat datang/i.test(message.text || '') &&
+        ((message.text || '').includes(nick) || (message.text || '').includes(plainNick))
+      );
+    }
+
+    function markMircWelcomeSeen() {
+      if (!currentSession || currentSession.role !== 'tenant') return;
+      const welcomes = getMemberWelcomeMessages();
+      if (!welcomes.length) return;
+      try {
+        localStorage.setItem('mircWelcomeSeen_' + currentSession.username, mircMessageKey(welcomes[welcomes.length - 1]));
+      } catch (err) { /* abaikan */ }
+    }
+
+    function checkMemberWelcomeNotification() {
+      if (!currentSession || currentSession.role !== 'tenant') return;
+      const welcomes = getMemberWelcomeMessages();
+      if (!welcomes.length) return;
+      const latestKey = mircMessageKey(welcomes[welcomes.length - 1]);
+      let seenKey = null;
+      try { seenKey = localStorage.getItem('mircWelcomeSeen_' + currentSession.username); } catch (err) {}
+      if (seenKey === latestKey) return;
+
+      unreadMircTabs.add('#umum');
+      updateMircUnreadIndicators();
+      renderMircChannels();
+      playMircBeep();
+      showToast('🔔 Ada pesan selamat bergabung untuk Anda di #umum mIRC32.', 'info');
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('Selamat datang di mIRC32 Kos', { body: welcomes[welcomes.length - 1].text });
+        } catch (err) { /* abaikan */ }
+      }
+    }
+
     function renderMircChannels() {
       const container = document.getElementById('mircChannelTabs');
       if (!container) return;
@@ -3541,6 +3728,7 @@
       const activeObj = mircChannels[activeMircTab] || { topic: '' };
       document.getElementById('mircActiveChanHeader').textContent = activeMircTab;
       document.getElementById('mircTopicDisplay').textContent = activeObj.topic;
+      updateMircUnreadIndicators();
     }
 
     function closeMircChannelTab(ch) {
@@ -3574,6 +3762,7 @@
       }
       activeMircTab = ch;
       unreadMircTabs.delete(ch);
+      if (ch === '#umum') markMircWelcomeSeen();
       renderMircChannels();
       renderMircMessages();
     }
@@ -4372,6 +4561,16 @@
         room.tenant = tenant.fullName;
       }
 
+      pushMircMessage('#umum', {
+        type: 'system',
+        time: getNowTimeStr(),
+        text: `*** +${tenant.nickname} (${tenant.fullName}) telah bergabung di ${tenant.roomName}.`
+      });
+      pushMircMessage('#umum', {
+        type: 'system',
+        time: getNowTimeStr(),
+        text: `*** Selamat datang +${tenant.nickname}! Perkenalkan diri Anda dan baca topic #umum. Ketik /help untuk daftar perintah.`
+      });
       pushMircMessage('#pengumuman', {
         type: 'system',
         time: getNowTimeStr(),
@@ -6360,17 +6559,27 @@
         if (currentSession && currentSession.role === 'tenant') renderPaymentBar();
       }, 60000);
 
-      setInterval(syncMircFromServer, 4000);
+      setInterval(syncMircFromServer, 2000);
       setInterval(() => { checkStaleMemberAccount().catch(() => {}); }, 60000);
       setInterval(() => { syncStateFromServer(); }, STATE_SYNC_INTERVAL_MS);
 
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) syncStateFromServer();
+        if (!document.hidden) {
+          syncStateFromServer();
+          syncMircFromServer();
+          updateMircUnreadIndicators();
+        }
       });
 
       hydratePortalState()
-        .then(refreshDynamicViews)
-        .catch(() => { /* tetap tampil dengan data default */ });
+        .then(() => {
+          refreshDynamicViews();
+          restorePortalSession();
+        })
+        .catch(() => {
+          /* tetap tampil dengan data default */
+          restorePortalSession();
+        });
     });
   </script>
 </body>
