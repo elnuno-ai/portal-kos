@@ -1694,6 +1694,71 @@
 
     let hiddenMircTabs = loadHiddenMircTabs();
 
+    // PM milik user: tab privat hanya tampil jika dibuka sendiri atau pesannya ditujukan ke user ini.
+    let openedPrivateTabs = new Set();
+
+    function isPublicMircChannel(ch) {
+      return typeof ch === 'string' && ch.startsWith('#');
+    }
+
+    function mircMessageAddresses(message, nick) {
+      if (!message || !nick) return false;
+      if (message.to === nick) return true;
+      return Array.isArray(message.to) && message.to.includes(nick);
+    }
+
+    // Tab PM hanya boleh tampil jika dibuka sendiri user, miliknya sendiri, atau pesannya ditujukan kepadanya.
+    function canShowPrivateTab(ch) {
+      if (isPublicMircChannel(ch)) return true;
+      if (openedPrivateTabs.has(ch)) return true;
+      const nick = currentSession && currentSession.nickname;
+      if (!nick) return false;
+      if (ch === nick) return true;
+      const channel = mircChannels[ch];
+      if (!channel || !Array.isArray(channel.messages)) return false;
+      return channel.messages.some(m =>
+        m && m.type === 'chat' && (mircMessageAddresses(m, nick) || m.nick === nick)
+      );
+    }
+
+    // Key PM yang tidak ditujukan ke user aktif hanya diabaikan di tampilan,
+    // tidak dihapus dari state agar tidak menghapus riwayat milik user lain.
+    function visibleMircChannels() {
+      return Object.keys(mircChannels || {}).filter(ch => {
+        // Channel publik selalu tampil; tab PM hanya jika milik/ditujukan ke user aktif.
+        if (!canShowPrivateTab(ch)) return false;
+        return !hiddenMircTabs.has(ch);
+      });
+    }
+
+    // Hapus sisa tab PM "hantu" yang tidak melibatkan user aktif mana pun.
+    function pruneGhostPrivateChannels() {
+      const activeNicks = new Set(['@AdminKos']);
+      registeredTenants.forEach(t => activeNicks.add('+' + t.nickname));
+      if (currentSession && currentSession.nickname) activeNicks.add(currentSession.nickname);
+
+      let changed = false;
+      Object.keys(mircChannels || {}).forEach(ch => {
+        if (isPublicMircChannel(ch)) return;
+        if (activeNicks.has(ch) || openedPrivateTabs.has(ch)) return;
+        const messages = mircChannels[ch] && mircChannels[ch].messages;
+        const involvesActiveUser = Array.isArray(messages) && messages.some(m => {
+          if (!m) return false;
+          if (activeNicks.has(m.nick)) return true;
+          if (Array.isArray(m.to)) return m.to.some(nick => activeNicks.has(nick));
+          return activeNicks.has(m.to);
+        });
+        if (!involvesActiveUser) {
+          delete mircChannels[ch];
+          hiddenMircTabs.delete(ch);
+          unreadMircTabs.delete(ch);
+          changed = true;
+        }
+      });
+      if (changed) saveHiddenMircTabs();
+      return changed;
+    }
+
     // Radio Online Kos State
     let radioStations = window.PORTAL_DATA.radioStations;
     let isRadioPlaying = false;
@@ -3140,6 +3205,10 @@
     }
 
     function activateLoggedInWorkspace() {
+      // Sesi baru selalu mulai dari channel publik; tab PM hanya dari aksi user.
+      openedPrivateTabs.clear();
+      activeMircTab = '#umum';
+      unreadMircTabs.delete('#umum');
       document.getElementById('portalAuthContainer').classList.add('hidden');
       document.getElementById('portalWorkspaceContainer').classList.remove('hidden');
       document.getElementById('internalUserBadge').textContent = `${currentSession.nickname} • Online`;
@@ -3329,6 +3398,7 @@
         mircChannels[pmTarget] = { topic: 'Private Message dengan Pengelola Kos', messages: [] };
       }
       activeMircTab = pmTarget;
+      openedPrivateTabs.add(pmTarget);
       hiddenMircTabs.delete(pmTarget);
       saveHiddenMircTabs();
       pushMircMessage(pmTarget, {
@@ -3336,6 +3406,7 @@
         time: getNowTimeStr(),
         nick: currentSession.nickname,
         role: currentSession.role,
+        to: pmTarget,
         text: `Halo Admin, saya ingin konfirmasi pembayaran sewa ${currentSession.roomName} (${currentSession.fullName}).`
       });
       renderMircChannels();
@@ -3348,37 +3419,44 @@
     function renderMircChannels() {
       const container = document.getElementById('mircChannelTabs');
       if (!container) return;
-      const visibleChannels = Object.keys(mircChannels).filter(ch => !hiddenMircTabs.has(ch));
-      container.innerHTML = visibleChannels.map(ch => {
+
+      const isPrivateSession = !!(currentSession && currentSession.nickname);
+      const channels = isPrivateSession ? visibleMircChannels() : Object.keys(mircChannels || {}).filter(isPublicMircChannel);
+
+      container.innerHTML = channels.map(ch => {
         const isActive = activeMircTab === ch;
         const isUnread = unreadMircTabs.has(ch);
-        const closeBtn = ch === '#umum'
-          ? ''
-          : `<button type="button" onclick="event.stopPropagation(); closeMircChannelTab('${escapeHtml(ch)}')" class="px-1.5 py-1 text-[11px] font-bold text-stone-600 hover:text-red-700" title="Tutup tab">✕</button>`;
+        const isPrivate = !isPublicMircChannel(ch);
+        // Tombol tutup hanya untuk tab PM, bukan channel publik.
+        const closeBtn = isPrivate
+          ? `<button type="button" onclick="event.stopPropagation(); closeMircChannelTab('${escapeHtml(ch)}')" class="px-1.5 py-1 text-[11px] font-bold text-stone-600 hover:text-red-700" title="Tutup tab PM">✕</button>`
+          : '';
         return `<div class="win98-btn flex items-center shrink-0 ${isActive ? 'active font-bold bg-white' : ''} ${isUnread ? 'mirc-tab-unread' : ''}">
           <button type="button" onclick="selectMircChannel('${escapeHtml(ch)}')" class="px-2.5 py-1 text-xs font-mono-code">${escapeHtml(ch)}</button>
           ${closeBtn}
         </div>`;
       }).join('');
 
-      if (hiddenMircTabs.size) {
-        container.innerHTML += `<button type="button" onclick="showAllMircTabs()" class="win98-btn px-2 py-1 text-[11px] font-bold shrink-0" title="Tampilkan semua tab">↺ Semua Tab</button>`;
+      const anyClosedPrivate = [...hiddenMircTabs].some(ch => !isPublicMircChannel(ch) && canShowPrivateTab(ch));
+      if (anyClosedPrivate) {
+        container.innerHTML += `<button type="button" onclick="showAllMircTabs()" class="win98-btn px-2 py-1 text-[11px] font-bold shrink-0" title="Tampilkan tab PM yang ditutup">↺ Tab PM</button>`;
       }
 
-      if (hiddenMircTabs.has(activeMircTab) || !mircChannels[activeMircTab]) activeMircTab = '#umum';
+      if (activeMircTab !== '#umum' && !channels.includes(activeMircTab)) activeMircTab = '#umum';
+      if (!mircChannels[activeMircTab]) activeMircTab = '#umum';
       const activeObj = mircChannels[activeMircTab] || { topic: '' };
       document.getElementById('mircActiveChanHeader').textContent = activeMircTab;
       document.getElementById('mircTopicDisplay').textContent = activeObj.topic;
     }
 
     function closeMircChannelTab(ch) {
-      if (!ch || ch === '#umum') return;
+      if (!ch || isPublicMircChannel(ch)) return;
       hiddenMircTabs.add(ch);
       saveHiddenMircTabs();
       if (activeMircTab === ch) activeMircTab = '#umum';
       renderMircChannels();
       renderMircMessages();
-      showToast(`Tab ${ch} ditutup. Klik "↺ Semua Tab" untuk menampilkannya lagi.`, 'info');
+      showToast(`Tab PM ${ch} ditutup dari tampilan Anda.`, 'info');
     }
 
     function showAllMircTabs() {
@@ -3386,10 +3464,20 @@
       saveHiddenMircTabs();
       renderMircChannels();
       renderMircMessages();
-      showToast('Semua tab channel ditampilkan kembali.', 'info');
+      showToast('Tab PM yang Anda tutup ditampilkan kembali.', 'info');
     }
 
     function selectMircChannel(ch) {
+      if (!ch) return;
+      if (!isPublicMircChannel(ch) && !canShowPrivateTab(ch)) {
+        showToast('Tab PM tersebut bukan milik akun Anda.', 'warning');
+        return;
+      }
+      if (!isPublicMircChannel(ch)) {
+        openedPrivateTabs.add(ch);
+        hiddenMircTabs.delete(ch);
+        saveHiddenMircTabs();
+      }
       activeMircTab = ch;
       unreadMircTabs.delete(ch);
       renderMircChannels();
@@ -3452,8 +3540,12 @@
     function openPrivateChatWith(targetNick) {
       if (!currentSession || targetNick === currentSession.nickname) return;
       if (!mircChannels[targetNick]) {
-        mircChannels[targetNick] = { topic: `Private Message berdua dengan ${targetNick}`, messages: [{ type: 'system', time: getNowTimeStr(), text: `*** Memulai sesi Private Message dengan ${targetNick}` }] };
+        mircChannels[targetNick] = {
+          topic: `Private Message berdua dengan ${targetNick}`,
+          messages: [mircStamp({ type: 'system', time: getNowTimeStr(), text: `*** Memulai sesi Private Message dengan ${targetNick}` })]
+        };
       }
+      openedPrivateTabs.add(targetNick);
       hiddenMircTabs.delete(targetNick);
       saveHiddenMircTabs();
       selectMircChannel(targetNick);
@@ -3519,7 +3611,7 @@
         const msgText = parts.join(' ');
         if (target && msgText) {
           openPrivateChatWith(target);
-          pushMircMessage(target, { type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, text: msgText });
+          pushMircMessage(target, { type: 'chat', time: t, nick: currentSession.nickname, role: currentSession.role, to: target, text: msgText });
           renderMircMessages();
           playMircBeep();
         }
@@ -4828,7 +4920,7 @@
     }
 
     function deleteMircChannel(ch) {
-      if (ch === '#umum') return;
+      if (!isPublicMircChannel(ch)) return;
       delete mircChannels[ch];
       hiddenMircTabs.delete(ch);
       saveHiddenMircTabs();
@@ -5778,6 +5870,7 @@
 
     function refreshDynamicViews() {
       const roomsReconciled = reconcileRoomOccupancy();
+      const mircPruned = pruneGhostPrivateChannels();
       applySiteBrandConfig();
       applyTabTextsToDOM();
       renderNavigationTabs();
@@ -5798,7 +5891,7 @@
         renderPaymentLogs();
       }
       applyBillingViewForSession();
-      if (roomsReconciled) queueStateSave();
+      if (roomsReconciled || mircPruned) queueStateSave();
     }
 
     window.addEventListener('DOMContentLoaded', () => {
