@@ -105,6 +105,14 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
 
+  <!-- BANNER NOTIFIKASI REAL-TIME PENDAFTAR BARU UNTUK ADMIN -->
+  <div id="adminPendingBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md bg-amber-400 text-stone-950 rounded-xl shadow-2xl px-4 py-3 flex items-center gap-3 border border-amber-600">
+    <span class="text-xl">🔔</span>
+    <div class="flex-1 text-xs font-bold" id="adminPendingBannerText">Pendaftar baru menunggu verifikasi.</div>
+    <button type="button" onclick="openPendingFromBanner()" class="px-2.5 py-1 rounded-lg bg-stone-900 text-white text-[11px] font-bold shrink-0">Tinjau</button>
+    <button type="button" onclick="hidePendingBanner()" class="font-bold text-stone-900 shrink-0" title="Tutup">✕</button>
+  </div>
+
 
   <!-- HEADER & MAIN NAVIGATION -->
   <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm">
@@ -394,7 +402,7 @@
           <!-- SUBTAB 2: REGISTRASI PENGHUNI BARU -->
           <div id="portalSubtab-register" class="hidden p-6 space-y-5">
             <!-- Pilih Kamar Kos Tersedia (Pendaftaran Mandiri) -->
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+            <div id="regRoomPickerBox" class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
               <label class="text-xs font-bold text-amber-950 block">1. Pilih Kamar Kos yang Tersedia *</label>
               <select id="regRoomSelect" required class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-sm focus:outline-none focus:border-amber-700">
                 <option value="">— Pilih Kamar Kos Tersedia —</option>
@@ -503,6 +511,22 @@
                 ✅ Daftar Sekarang & Aktifvasi
               </button>
             </form>
+
+            <!-- LAYAR KONFIRMASI PENDAFTARAN (MENUNGGU VERIFIKASI ADMIN) -->
+            <div id="registrationPendingScreen" class="hidden">
+              <div class="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-3">
+                <div class="text-4xl">⏳</div>
+                <h3 class="text-xl font-extrabold text-stone-900">Pendaftaran Diterima</h3>
+                <p id="registrationPendingText" class="text-sm text-stone-700 leading-relaxed">
+                  Pendaftaran Anda sudah kami terima dan sedang menunggu pemeriksaan KTP & verifikasi oleh Admin Kos.
+                </p>
+                <p class="text-xs text-stone-500 leading-relaxed">
+                  Akun Portal Kos & Wi-Fi akan aktif setelah Admin menyetujui pendaftaran. Simpan Username dan PIN yang dikirimkan Admin.
+                </p>
+                <a id="registrationPendingWaBtn" href="#" target="_blank" class="inline-flex items-center justify-center w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs">📲 Konfirmasi ke WhatsApp Admin</a>
+                <button type="button" onclick="showRegistrationFormAgain()" class="w-full py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs">Kembali ke Sign In</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -800,6 +824,18 @@
       </div>
 
       <div id="adminCardsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- ANTREAN VERIFIKASI PENGHUNI BARU (PALING ATAS) -->
+        <div data-admin-card="pending" class="bg-white rounded-2xl p-6 border border-amber-200 shadow-sm space-y-4 lg:col-span-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="font-extrabold text-lg text-stone-900">⏳ Antrean Verifikasi Penghuni Baru</h3>
+              <p class="text-xs text-stone-600 mt-0.5">Pendaftar mandiri menunggu pemeriksaan KTP. Verifikasi untuk mengaktifkan akun, kamar, dan akses Wi-Fi.</p>
+            </div>
+            <span id="adminPendingTenantCount" class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">0 Menunggu</span>
+          </div>
+          <div id="adminPendingTenantsList" class="space-y-2.5 max-h-[420px] overflow-y-auto text-xs"></div>
+        </div>
+
         <!-- 0. IDENTITAS BRAND, LOGO, TITLE, SUBTITLE & FOOTER -->
         <div data-admin-card="brand" class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4 lg:col-span-2">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1624,6 +1660,7 @@
     let nearbyLocations = window.PORTAL_DATA.nearbyLocations;
 
     let registeredTenants = window.PORTAL_DATA.registeredTenants;
+    let pendingTenants = Array.isArray(window.PORTAL_DATA.pendingTenants) ? window.PORTAL_DATA.pendingTenants : [];
 
     let alumniArchive = [];
 
@@ -1668,7 +1705,7 @@
     );
 
     // Urutan kartu Panel Admin (bisa disusun ulang)
-    const DEFAULT_ADMIN_CARD_ORDER = ['brand', 'running-text', 'rooms', 'move-room', 'rules', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
+    const DEFAULT_ADMIN_CARD_ORDER = ['pending', 'brand', 'running-text', 'rooms', 'move-room', 'rules', 'promo', 'sedhah-menu', 'guestbook', 'tenants', 'alumni', 'tabs-nav', 'radar', 'mirc-channels', 'radio'];
     const ADMIN_CARD_ORDER_STORAGE_KEY = 'adminCardOrder';
 
     function sanitizeAdminCardOrder(order) {
@@ -1683,6 +1720,12 @@
       DEFAULT_ADMIN_CARD_ORDER.forEach(id => {
         if (!seen.has(id)) result.push(id);
       });
+      // Kartu antrean verifikasi selalu di urutan paling atas.
+      const pendingIndex = result.indexOf('pending');
+      if (pendingIndex > 0) {
+        result.splice(pendingIndex, 1);
+        result.unshift('pending');
+      }
       return result;
     }
 
@@ -1760,6 +1803,7 @@
         rooms,
         nearbyLocations,
         registeredTenants,
+        pendingTenants,
         guestbookEntries,
         mircChannels,
         promos,
@@ -1920,6 +1964,7 @@
       if (Array.isArray(state.rooms)) rooms = state.rooms;
       if (Array.isArray(state.nearbyLocations)) nearbyLocations = state.nearbyLocations;
       if (Array.isArray(state.registeredTenants)) registeredTenants = state.registeredTenants;
+      if (Array.isArray(state.pendingTenants)) pendingTenants = state.pendingTenants;
       if (Array.isArray(state.guestbookEntries)) guestbookEntries = state.guestbookEntries;
       if (state.mircChannels && typeof state.mircChannels === 'object') mircChannels = state.mircChannels;
       if (Array.isArray(state.promos)) promos = state.promos;
@@ -1983,6 +2028,7 @@
         if (remoteJson === lastRemoteStateJson) return;
         lastRemoteStateJson = remoteJson;
 
+        const previousPendingIds = new Set(pendingTenants.map(p => p.id));
         applyPersistedState(state);
         registeredTenants.forEach(ensureTenantFinanceFields);
         repairSedhahMenuImages();
@@ -1990,6 +2036,11 @@
         // meski state lokal sudah sempat ter-update lewat jalur lain.
         lastSavedStateJson = JSON.stringify(getPortalStateSnapshot());
         refreshDynamicViews();
+
+        const newPending = pendingTenants.filter(p => !previousPendingIds.has(p.id));
+        if (newPending.length && currentSession && currentSession.role === 'admin') {
+          updatePendingBanner(true);
+        }
       } catch (err) {
         /* polling state opsional, abaikan gangguan jaringan */
       } finally {
@@ -2774,6 +2825,8 @@
           statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">● Tersedia</span>';
         } else if (room.status === 'occupied') {
           statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-stone-200 text-stone-700">● Terisi</span>`;
+        } else if (room.status === 'pending') {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">🟡 Menunggu Verifikasi</span>';
         } else {
           statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">🛠️ Renovasi</span>';
         }
@@ -2794,7 +2847,7 @@
         const waMsg = `Halo Mas Inu, saya tertarik survei/pesan ${room.name} (${pricing.formattedActive}/bln). Apakah masih tersedia?`;
         const actionBtn = room.status === 'available'
           ? `<a href="${buildWhatsappUrl(waMsg)}" target="_blank" class="block w-full text-center py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm">📲 Pesan / Survei via WA</a>`
-          : `<button disabled class="w-full py-2.5 rounded-xl bg-stone-100 text-stone-400 font-bold text-xs cursor-not-allowed">${room.status === 'occupied' ? 'Unit Sedang Terisi' : 'Dalam Perbaikan / Renovasi'}</button>`;
+          : `<button disabled class="w-full py-2.5 rounded-xl bg-stone-100 text-stone-400 font-bold text-xs cursor-not-allowed">${room.status === 'occupied' ? 'Unit Sedang Terisi' : room.status === 'pending' ? '🟡 Menunggu Verifikasi Admin' : 'Dalam Perbaikan / Renovasi'}</button>`;
 
         return `
           <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm flex flex-col justify-between space-y-4">
@@ -2961,6 +3014,16 @@
     }
 
     // ==================== 5. AUTH, REGISTRASI PENGHUNI BARU & PORTAL ====================
+    function showRegistrationFormAgain() {
+      const screen = document.getElementById('registrationPendingScreen');
+      const form = document.getElementById('registerTenantForm');
+      const picker = document.getElementById('regRoomPickerBox');
+      if (screen) screen.classList.add('hidden');
+      if (form) form.classList.remove('hidden');
+      if (picker) picker.classList.remove('hidden');
+      switchPortalAuthSubtab('signin');
+    }
+
     function switchPortalAuthSubtab(sub) {
       const signInBtn = document.getElementById('subtabBtnSignIn');
       const regBtn = document.getElementById('subtabBtnRegister');
@@ -2977,6 +3040,12 @@
         signInBtn.className = 'py-3.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-stone-600 hover:text-stone-900';
         regPane.classList.remove('hidden');
         signInPane.classList.add('hidden');
+        const pendingScreen = document.getElementById('registrationPendingScreen');
+        const regForm = document.getElementById('registerTenantForm');
+        const roomPicker = document.getElementById('regRoomPickerBox');
+        if (pendingScreen) pendingScreen.classList.add('hidden');
+        if (regForm) regForm.classList.remove('hidden');
+        if (roomPicker) roomPicker.classList.remove('hidden');
         refreshRegistrationRooms();
       }
     }
@@ -3044,9 +3113,24 @@
         showToast('Masuk sebagai Admin Kos (@AdminKos)', 'success');
         return;
       }
+      const pending = pendingTenants.find(t => String(t.username || '').toLowerCase() === user.toLowerCase() && t.pin === pin);
+      if (pending) {
+        showToast(`Pendaftaran ${pending.roomName} masih menunggu verifikasi Admin Kos. Mohon tunggu konfirmasi KTP & aktivasi akun.`, 'warning');
+        return;
+      }
       const tenant = registeredTenants.find(t => t.username.toLowerCase() === user.toLowerCase() && t.pin === pin);
       if (tenant) {
         currentSession = { role: 'tenant', ...tenant, nickname: '+' + tenant.nickname };
+        if (tenant.pwaMemberSubscribed && tenant.pushDeviceToken) {
+          try {
+            localStorage.setItem('kosMemberAccount', JSON.stringify({
+              username: tenant.username,
+              roomId: tenant.roomId,
+              token: tenant.pushDeviceToken,
+              subscribedAt: new Date().toISOString()
+            }));
+          } catch (err) { /* abaikan */ }
+        }
         activateLoggedInWorkspace();
         switchMainTab('portal');
         showToast(`Selamat datang kembali, ${tenant.fullName}!`, 'success');
@@ -3088,6 +3172,7 @@
       renderPaymentBar();
       renderPaymentLogs();
       applyBillingViewForSession();
+      updatePendingBanner(false);
     }
 
     function copyWifiCredential(type) {
@@ -3119,6 +3204,7 @@
     function logoutPortal() {
       stopKosRadioPlayback();
       currentSession = null;
+      hidePendingBanner();
       renderNavigationTabs();
       document.getElementById('portalAuthContainer').classList.remove('hidden');
       document.getElementById('portalWorkspaceContainer').classList.add('hidden');
@@ -3561,6 +3647,8 @@
 
     // ==================== 7. ADMIN PANEL RENDER & MODALS ====================
     function renderAdminPanel() {
+      renderPendingTenants();
+
       // 0. Sync Site Brand, Logo & Footer Form Values
       const brandTitleInput = document.getElementById('adminBrandTitle');
       if (brandTitleInput) {
@@ -3615,6 +3703,7 @@
                 <select onchange="changeRoomStatus('${r.id}', this.value)" class="px-2 py-1 rounded-lg border border-stone-300 bg-white text-[11px] font-semibold">
                   <option value="available" ${r.status === 'available' ? 'selected' : ''}>● Tersedia</option>
                   <option value="occupied" ${r.status === 'occupied' ? 'selected' : ''}>● Terisi</option>
+                  <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>🟡 Menunggu Verifikasi</option>
                   <option value="renovation" ${r.status === 'renovation' ? 'selected' : ''}>🛠️ Renovasi</option>
                 </select>
                 <button type="button" onclick="openEditRoomModal('${r.id}')" class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-[11px]">✏️ Edit Detail & Diskon</button>
@@ -3840,9 +3929,14 @@
 
     function reconcileRoomOccupancy() {
       const activeRoomIds = new Set(registeredTenants.map(t => t.roomId));
+      const pendingRoomIds = new Set(pendingTenants.map(t => t.roomId));
       let changed = false;
       rooms.forEach(room => {
         if (room.status === 'occupied' && !activeRoomIds.has(room.id)) {
+          room.status = 'available';
+          room.tenant = null;
+          changed = true;
+        } else if (room.status === 'pending' && !pendingRoomIds.has(room.id)) {
           room.status = 'available';
           room.tenant = null;
           changed = true;
@@ -4012,6 +4106,187 @@
     function totalPaymentLogAmount(entity) {
       return (Array.isArray(entity.paymentLogs) ? entity.paymentLogs : [])
         .reduce((sum, log) => sum + (Number(log.amount) || 0), 0);
+    }
+
+    function renderPendingTenants() {
+      const list = document.getElementById('adminPendingTenantsList');
+      const countEl = document.getElementById('adminPendingTenantCount');
+      if (countEl) countEl.textContent = `${pendingTenants.length} Menunggu`;
+      if (!list) return;
+
+      if (!pendingTenants.length) {
+        list.innerHTML = '<div class="text-xs text-stone-500 italic p-2">Tidak ada pendaftar menunggu verifikasi.</div>';
+        return;
+      }
+
+      list.innerHTML = pendingTenants.map(p => `
+        <div class="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="font-extrabold text-stone-900">${escapeHtml(p.fullName)} <span class="text-amber-900 font-mono-code">(${escapeHtml(p.roomName)})</span></span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 font-bold">🟡 Menunggu Verifikasi</span>
+          </div>
+          <div class="text-stone-600">HP: ${escapeHtml(p.phone)} • Darurat: ${escapeHtml(p.emergencyPhone)}</div>
+          <div class="text-stone-600">Username: <strong class="font-mono-code">${escapeHtml(p.username)}</strong> • Daftar: ${escapeHtml(p.requestedAtLabel || '-')}</div>
+          <div class="text-stone-500 text-[11px]">${escapeHtml(p.profession || '-')} • ${escapeHtml(p.workplace || '-')}</div>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <button type="button" onclick="viewPendingKtp('${escapeHtml(p.id)}')" class="px-2.5 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold">🪪 Lihat Foto KTP</button>
+            <button type="button" onclick="approvePendingTenant('${escapeHtml(p.id)}')" class="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold">✅ Verifikasi & Aktifkan</button>
+            <button type="button" onclick="rejectPendingTenant('${escapeHtml(p.id)}')" class="px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 font-bold">🗑️ Tolak & Hapus</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function viewPendingKtp(id) {
+      const p = pendingTenants.find(item => item.id === id);
+      if (!p) return;
+      document.getElementById('ktpModalTitle').textContent = `KTP Pendaftar: ${p.fullName}`;
+      document.getElementById('ktpModalBody').innerHTML = `
+        <div class="space-y-1.5">
+          <div><strong>Username:</strong> <span class="font-mono-code">${escapeHtml(p.username)}</span> (PIN: ${escapeHtml(p.pin || '-')})</div>
+          <div><strong>Kamar Pilihan:</strong> ${escapeHtml(p.roomName)} (Menunggu Verifikasi)</div>
+          <div><strong>Nomor HP / WA:</strong> ${escapeHtml(p.phone)}</div>
+          <div><strong>Kontak Darurat:</strong> ${escapeHtml(p.emergencyPhone)}</div>
+          <div><strong>Alamat Asli KTP:</strong> ${escapeHtml(p.originAddress)}</div>
+          <div><strong>Profesi / Instansi:</strong> ${escapeHtml(p.profession)} — ${escapeHtml(p.workplace)}</div>
+          <div><strong>Waktu Daftar:</strong> ${escapeHtml(p.requestedAtLabel || '-')}</div>
+        </div>
+        ${p.ktpPhoto ? `<img src="${p.ktpPhoto}" class="w-full rounded-xl border border-stone-300 mt-2" />` : '<div class="p-4 rounded-xl bg-stone-100 text-center text-stone-500 mt-2">Foto KTP tidak terlampir.</div>'}
+      `;
+      document.getElementById('ktpViewerModal').classList.remove('hidden');
+    }
+
+    async function approvePendingTenant(id) {
+      await pullLatestStateBeforeMutation();
+      const idx = pendingTenants.findIndex(item => item.id === id);
+      if (idx === -1) {
+        showToast('Pendaftar tidak ditemukan (mungkin sudah diproses).', 'warning');
+        renderAdminPanel();
+        return;
+      }
+      const pending = pendingTenants[idx];
+      const room = rooms.find(r => r.id === pending.roomId);
+      if (room && room.status === 'occupied' && registeredTenants.some(t => t.roomId === room.id)) {
+        showToast('Kamar sudah terisi penghuni lain. Tolak pendaftaran ini atau pindahkan kamar.', 'warning');
+        return;
+      }
+
+      const tenant = { ...pending };
+      delete tenant.id;
+      delete tenant.requestedAt;
+      delete tenant.requestedAtLabel;
+      ensureTenantFinanceFields(tenant);
+
+      pendingTenants.splice(idx, 1);
+      registeredTenants.push(tenant);
+      if (room) {
+        room.status = 'occupied';
+        room.tenant = tenant.fullName;
+      }
+
+      pushMircMessage('#pengumuman', {
+        type: 'system',
+        time: getNowTimeStr(),
+        text: `*** ✅ Penghuni baru terverifikasi: +${tenant.nickname} (${tenant.fullName}) di ${tenant.roomName}. Selamat bergabung!`
+      });
+
+      renderRooms();
+      renderAdminPanel();
+      updatePendingBanner(false);
+      renderMircChannels();
+      if (activeMircTab === '#pengumuman') renderMircMessages();
+      const saved = await saveStateImmediately();
+      if (saved) showToast(`${tenant.fullName} berhasil diverifikasi & diaktifkan.`, 'success');
+    }
+
+    async function rejectPendingTenant(id) {
+      const target = pendingTenants.find(item => item.id === id);
+      if (!target) return;
+      if (!confirm(`Tolak & hapus pendaftaran ${target.fullName}?`)) return;
+
+      await pullLatestStateBeforeMutation();
+      const idx = pendingTenants.findIndex(item => item.id === id);
+      if (idx === -1) {
+        showToast('Pendaftar tidak ditemukan (mungkin sudah diproses).', 'warning');
+        renderAdminPanel();
+        return;
+      }
+      const pending = pendingTenants[idx];
+      pendingTenants.splice(idx, 1);
+
+      const stillPending = pendingTenants.some(item => item.roomId === pending.roomId);
+      const room = rooms.find(r => r.id === pending.roomId);
+      if (room && room.status === 'pending' && !stillPending) {
+        room.status = 'available';
+        room.tenant = null;
+      }
+
+      renderRooms();
+      renderAdminPanel();
+      updatePendingBanner(false);
+      const saved = await saveStateImmediately();
+      if (saved) showToast(`Pendaftaran ${pending.fullName} ditolak & dihapus.`, 'info');
+    }
+
+    function playAdminAlertBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        [0, 0.2].forEach((offset, index) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.value = index === 0 ? 880 : 660;
+          gain.gain.setValueAtTime(0.05, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.16);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.17);
+        });
+        setTimeout(() => { try { ctx.close(); } catch (err) { /* abaikan */ } }, 800);
+      } catch (err) { /* audio tidak tersedia */ }
+    }
+
+    let pendingBannerDismissedCount = -1;
+
+    function updatePendingBanner(notify = false) {
+      const banner = document.getElementById('adminPendingBanner');
+      if (!banner) return;
+      if (!currentSession || currentSession.role !== 'admin' || !pendingTenants.length) {
+        banner.classList.add('hidden');
+        if (!pendingTenants.length) pendingBannerDismissedCount = -1;
+        return;
+      }
+      if (pendingTenants.length === pendingBannerDismissedCount) return;
+
+      const text = document.getElementById('adminPendingBannerText');
+      if (text) text.textContent = `${pendingTenants.length} pendaftar baru menunggu verifikasi Admin Kos.`;
+      banner.classList.remove('hidden');
+
+      if (notify) {
+        playAdminAlertBeep();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('Pendaftar Baru Menunggu Verifikasi', {
+              body: `${pendingTenants.length} pendaftar baru menunggu verifikasi di Panel Admin.`
+            });
+          } catch (err) { /* notifikasi opsional */ }
+        }
+      }
+    }
+
+    function hidePendingBanner() {
+      const banner = document.getElementById('adminPendingBanner');
+      if (banner) banner.classList.add('hidden');
+      pendingBannerDismissedCount = pendingTenants.length;
+    }
+
+    function openPendingFromBanner() {
+      hidePendingBanner();
+      switchMainTab('admin');
+      const card = document.querySelector('[data-admin-card="pending"]');
+      if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function exportTenantsCsv(kind) {
@@ -4696,8 +4971,8 @@
     async function compactStoredImages() {
       let changed = false;
 
-      for (const tenant of registeredTenants) {
-        if (tenant.ktpPhoto) {
+      for (const tenant of registeredTenants.concat(pendingTenants)) {
+        if (tenant && tenant.ktpPhoto) {
           const next = await shrinkDataUrlImage(tenant.ktpPhoto);
           if (next !== tenant.ktpPhoto) { tenant.ktpPhoto = next; changed = true; }
         }
@@ -4829,7 +5104,7 @@
       const baseUsername = `kmr${numberPart}-${firstWord}`;
       let username = baseUsername;
       let suffix = 2;
-      while (registeredTenants.some(t => t.username === username)) {
+      while (registeredTenants.some(t => t.username === username) || pendingTenants.some(t => t.username === username)) {
         username = `${baseUsername}-${suffix++}`;
       }
       const pin = '1234';
@@ -4862,60 +5137,38 @@
         paymentLogs: []
       };
 
-      registeredTenants.push(newTenant);
-      roomObj.status = 'occupied';
+      const pendingRecord = {
+        ...newTenant,
+        id: 'PEND' + Date.now().toString(36).toUpperCase(),
+        requestedAt: new Date().toISOString(),
+        requestedAtLabel: `${formatDateID(toISODateLocal(new Date()))} • ${getNowTimeStr()}`
+      };
+
+      pendingTenants.unshift(pendingRecord);
+      roomObj.status = 'pending';
       roomObj.tenant = fullName;
-
-      const joinTime = getNowTimeStr();
-      pushMircMessage('#umum', {
-        type: 'system',
-        time: joinTime,
-        text: `*** ${newTenant.nickname} (${newTenant.fullName}) telah bergabung di ${newTenant.roomName}.`
-      });
-      pushMircMessage('#umum', {
-        type: 'system',
-        time: joinTime,
-        text: `*** Selamat datang +${newTenant.nickname}! Perkenalkan diri Anda dan baca topic #umum. Ketik /help untuk daftar perintah.`
-      });
-
-      currentSession = { role: 'tenant', ...newTenant, nickname: '+' + newTenant.nickname };
-
-      if (memberNotify.permission === 'granted') {
-        try {
-          localStorage.setItem('kosMemberAccount', JSON.stringify({
-            username,
-            roomId: roomObj.id,
-            token: memberDeviceToken,
-            subscribedAt: new Date().toISOString()
-          }));
-        } catch (err) { /* localStorage tidak tersedia */ }
-      }
 
       this.reset();
       pendingKtpPhotoWebP = null;
       document.getElementById('regKtpPreviewBox').classList.add('hidden');
+
+      const pendingText = document.getElementById('registrationPendingText');
+      if (pendingText) {
+        pendingText.textContent = `Pendaftaran ${fullName} untuk ${roomObj.name} telah kami terima dan sedang menunggu pemeriksaan KTP & verifikasi Admin Kos.`;
+      }
+      const pendingWaBtn = document.getElementById('registrationPendingWaBtn');
+      if (pendingWaBtn) {
+        pendingWaBtn.href = buildWhatsappUrl(`Halo Admin, saya ${fullName} baru mendaftar ${roomObj.name} (username ${username}). Mohon verifikasi KTP & aktivasi akun saya.`);
+      }
+      document.getElementById('registerTenantForm').classList.add('hidden');
+      document.getElementById('regRoomPickerBox').classList.add('hidden');
+      document.getElementById('registrationPendingScreen').classList.remove('hidden');
+
       renderRooms();
       renderRegRoomOptions();
       renderAdminPanel();
-      activateLoggedInWorkspace();
-      switchMainTab('portal');
-      switchInternalSubView('billing');
-      renderAccountCard();
       const saved = await saveStateImmediately();
-
-      // Notifikasi member: bunyi + tab berkedip saat welcome mIRC32 masuk.
-      unreadMircTabs.add('#umum');
-      renderMircChannels();
-      renderMircUserList();
-      playMircBeep();
-      if (saved) showToast(`Akun aktif! Username: ${username} • PIN standar: 1234`, 'success');
-      if (memberNotify.permission === 'granted' && 'Notification' in window && Notification.permission === 'granted') {
-        try {
-          new Notification('Selamat datang di mIRC32 Kos', {
-            body: `Hai ${newTenant.fullName}! Kamu bergabung di ${newTenant.roomName}. Cek tab mIRC32 untuk pesan selamat datang.`
-          });
-        } catch (err) { /* notifikasi opsional */ }
-      }
+      if (saved) showToast('Pendaftaran diterima. Menunggu verifikasi Admin Kos.', 'success');
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;

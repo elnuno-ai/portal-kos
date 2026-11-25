@@ -4,5 +4,6 @@
 - Expects chat/timeline UIs to be bottom-anchored: newest messages start at the bottom of the message box and older lines move up as messages accumulate (no top-down stacking). Confidence: 0.6
 - Insists that hand-edited copy/content already in the code (brand names, addresses, headings) must survive refactors and bug fixes untouched — preserve their edits, fix only the code. Confidence: 0.6
 - Wants mobile layouts to be truly adaptive: no horizontal scrolling/swiping needed to reach nav or tabs — prefers content to wrap onto multiple rows (e.g., nav in 2 lines) rather than overflow-x scroll. Confidence: 0.75
+- Wants long lists inside dashboard cards capped at a fixed visible height (e.g. ~5 rows) with an internal vertical scrollbar, so the page itself never grows ("tanpa memanjangkan halaman"). Confidence: 0.55
 - Dislikes silent failures: errors (HTTP status, DB/network cause) must be surfaced with the specific reason in the user-facing notification and logged to the console instead of being swallowed. Confidence: 0.6
 - Expects state shared between devices to be refreshed from the server whenever the relevant tab/form is opened, so changes made elsewhere (e.g. a room set to available by admin) appear without a manual page refresh ("selalu memuat data terbaru"). Confidence: 0.55
