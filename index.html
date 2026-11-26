@@ -2653,6 +2653,62 @@
 
       const logs = Array.isArray(tenant.paymentLogs) ? tenant.paymentLogs : (tenant.paymentLogs = []);
       const logPeriodKey = log => monthKeyFromLabel(log && log.period) || String((log && log.paidDate) || '').slice(0, 7);
+
+      // Perbaiki data lama: dulu periode pertama dihitung dari (tanggal masuk + 30 hari),
+      // sehingga satu pembayaran tercatat untuk bulan depan dan jatuh tempo melompat 2 bulan.
+      const stalePeriodKeys = new Set();
+      logs.forEach(log => {
+        const paidKey = String((log && log.paidDate) || '').slice(0, 7);
+        const recordedKey = logPeriodKey(log);
+        if (!/^\d{4}-\d{2}$/.test(paidKey) || !/^\d{4}-\d{2}$/.test(recordedKey || '')) return;
+        if (recordedKey <= paidKey) return;
+        const alreadyCovered = logs.some(other =>
+          other !== log && monthKeyFromLabel(other.period) === paidKey
+        );
+        if (alreadyCovered) return;
+        log.period = monthKeyToLabel(paidKey);
+        log.repairedPeriod = true;
+        stalePeriodKeys.add(recordedKey);
+      });
+      if (stalePeriodKeys.size) {
+        tenant.billingPeriods = tenant.billingPeriods.filter(period => {
+          if (!stalePeriodKeys.has(period.period) || period.status !== 'paid') return true;
+          return logs.some(log => logPeriodKey(log) === period.period);
+        });
+
+        // Setelah periode palsu dibuang, rapikan periode yang belum lunas agar
+        // bersambung tepat satu bulan setelah pembayaran terakhir (tanpa bulan bolong).
+        const paidKeys = logs.map(logPeriodKey).filter(key => /^\d{4}-\d{2}$/.test(key || '')).sort();
+        const lastPaidKey = paidKeys[paidKeys.length - 1];
+        const firstUnpaid = tenant.billingPeriods
+          .filter(period => period.status !== 'paid')
+          .sort((a, b) => String(a.period).localeCompare(String(b.period)))[0];
+        if (lastPaidKey && firstUnpaid) {
+          const expectedKey = addMonthsISO(`${lastPaidKey}-01`, 1).slice(0, 7);
+          if (String(firstUnpaid.period) > expectedKey) {
+            const oldDueDate = parseISODateLocal(firstUnpaid.dueDate);
+            const day = oldDueDate ? oldDueDate.getDate() : 1;
+            const [year, month] = expectedKey.split('-').map(Number);
+            const lastDay = new Date(year, month, 0).getDate();
+            firstUnpaid.period = expectedKey;
+            firstUnpaid.id = 'BP-' + expectedKey;
+            firstUnpaid.dueDate = `${expectedKey}-${pad2(Math.min(day, lastDay))}`;
+          }
+          // Periode belum lunas yang lebih jauh adalah sisa dari tanggal lama
+          // (bukan tagihan yang benar-benar menumpuk) — sisakan satu periode berjalan.
+          // Periode yang ditambah manual oleh Admin tidak ikut dibuang.
+          tenant.billingPeriods = tenant.billingPeriods.filter(period => {
+            if (period.status === 'paid') return true;
+            if (String(period.period) <= expectedKey) return true;
+            return period.id !== 'BP-' + period.period;
+          });
+          // Sinkronkan dulu agar blok periode berjalan di bawah tidak membuat ulang bulan lama.
+          const remainingUnpaid = tenant.billingPeriods
+            .filter(period => period.status !== 'paid' && period.dueDate)
+            .sort((a, b) => String(a.period).localeCompare(String(b.period)))[0];
+          if (remainingUnpaid) tenant.nextDueDate = remainingUnpaid.dueDate;
+        }
+      }
       const manualLogKeys = new Set(
         logs
           .filter(log => log && !String(log.id || '').startsWith('BPP-'))
@@ -2705,6 +2761,26 @@
         });
       }
 
+      // Penghuni baru tanpa riwayat bayar: periode pertama harus mulai dari bulan
+      // masuk kos, bukan bulan setelahnya. Tanpa ini sekali bayar langsung
+      // melompat 2 bulan karena periode awal sudah memakai bulan berikutnya.
+      const joinDateObj = parseIndonesianDate(tenant.joinDate) || parseISODateLocal(tenant.joinDate);
+      const joinKey = joinDateObj ? toISODateLocal(joinDateObj).slice(0, 7) : currentMonthKey();
+      const unpaidSorted = tenant.billingPeriods
+        .filter(p => p.status !== 'paid')
+        .sort((a, b) => String(a.period).localeCompare(String(b.period)));
+      const firstUnpaid = unpaidSorted[0];
+      if (!tenant.paymentLogs.length && firstUnpaid && String(firstUnpaid.period) > joinKey
+        && !tenant.billingPeriods.some(p => p.period === joinKey)) {
+        const dueDaySource = parseISODateLocal(firstUnpaid.dueDate) || joinDateObj || new Date();
+        const [joinYear, joinMonth] = joinKey.split('-').map(Number);
+        const lastDayOfJoinMonth = new Date(joinYear, joinMonth, 0).getDate();
+        const dueDay = Math.min(dueDaySource.getDate(), lastDayOfJoinMonth);
+        firstUnpaid.period = joinKey;
+        firstUnpaid.id = 'BP-' + joinKey;
+        firstUnpaid.dueDate = `${joinKey}-${pad2(dueDay)}`;
+      }
+
       tenant.billingPeriods.sort((a, b) => String(a.period).localeCompare(String(b.period)));
       return tenant.billingPeriods;
     }
@@ -2720,12 +2796,20 @@
     function ensureTenantFinanceFields(tenant) {
       if (!tenant || typeof tenant !== 'object') return tenant;
       if (!tenant.nextDueDate) {
-        const baseDate = parseIndonesianDate(tenant.joinDate) || new Date();
-        tenant.nextDueDate = addDaysISO(toISODateLocal(baseDate), 30);
+        // Data lama menyimpan jatuh tempo sebagai teks (mis. "10 Des 2026").
+        const legacyDue = parseIndonesianDate(tenant.billingDue);
+        const baseDate = legacyDue || parseIndonesianDate(tenant.joinDate) || new Date();
+        tenant.nextDueDate = toISODateLocal(baseDate);
       }
       if (typeof tenant.pwaMemberSubscribed !== 'boolean') tenant.pwaMemberSubscribed = false;
       if (!Array.isArray(tenant.paymentLogs)) tenant.paymentLogs = [];
-      ensureBillingPeriods(tenant);
+      const periods = ensureBillingPeriods(tenant);
+      // Jatuh tempo selalu mengikuti periode yang belum lunas paling awal,
+      // supaya angka "hari lagi" dan tanggal tidak bisa berbeda cerita.
+      const nextUnpaid = periods
+        .filter(p => p.status !== 'paid' && p.dueDate)
+        .sort((a, b) => String(a.period).localeCompare(String(b.period)))[0];
+      if (nextUnpaid) tenant.nextDueDate = nextUnpaid.dueDate;
       return tenant;
     }
 
@@ -5740,7 +5824,7 @@
         id: 'BP-' + nextKey + '-' + Date.now().toString(36).toUpperCase(),
         period: nextKey,
         amount: last ? Number(last.amount) || parseRupiahNumber(tenant.billingAmount) : parseRupiahNumber(tenant.billingAmount),
-        dueDate: last ? addMonthsISO(last.dueDate || toISODateLocal(new Date()), 1) : addDaysISO(toISODateLocal(new Date()), 30),
+        dueDate: last ? addMonthsISO(last.dueDate || toISODateLocal(new Date()), 1) : toISODateLocal(new Date()),
         status: 'unpaid',
         paidDate: '',
         note: ''
@@ -6471,7 +6555,7 @@
         billingStatus: 'LUNAS',
         billingAmount: pricing.formattedActive,
         billingDue: '21 Desember 2026',
-        nextDueDate: addDaysISO(toISODateLocal(new Date()), 30),
+        nextDueDate: toISODateLocal(new Date()),
         pwaMemberSubscribed: memberNotify.permission === 'granted',
         pushSubscription: memberNotify.subscription || null,
         pushDeviceToken: memberDeviceToken,
