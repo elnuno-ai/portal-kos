@@ -5087,17 +5087,11 @@
         time: getNowTimeStr(),
         text: `*** Selamat datang +${tenant.nickname}! Perkenalkan diri Anda dan baca topic #umum. Ketik /help untuk daftar perintah.`
       });
-      pushMircMessage('#pengumuman', {
-        type: 'system',
-        time: getNowTimeStr(),
-        text: `*** ✅ Penghuni baru terverifikasi: +${tenant.nickname} (${tenant.fullName}) di ${tenant.roomName}. Selamat bergabung!`
-      });
-
       renderRooms();
       renderAdminPanel();
       updatePendingBanner(false);
       renderMircChannels();
-      if (activeMircTab === '#pengumuman') renderMircMessages();
+      if (activeMircTab === '#umum') renderMircMessages();
       const saved = await saveStateImmediately();
       if (saved) showToast(`${tenant.fullName} berhasil diverifikasi & diaktifkan.`, 'success');
     }
