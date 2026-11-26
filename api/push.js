@@ -1,8 +1,20 @@
 const { Pool } = require('pg');
-const webpush = require('web-push');
 
 let pool = null;
 let schemaReady = null;
+let webpushModule = null;
+let webpushError = null;
+
+function getWebPush() {
+  if (webpushModule || webpushError) return webpushModule;
+  try {
+    webpushModule = require('web-push');
+  } catch (err) {
+    webpushError = err;
+    console.error('[push] modul web-push gagal dimuat:', err.message);
+  }
+  return webpushModule;
+}
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || process.env.PUSH_VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || process.env.PUSH_VAPID_PRIVATE_KEY || '';
@@ -194,6 +206,13 @@ module.exports = async function handler(req, res) {
         return res.status(503).json({
           ok: false,
           error: 'VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY belum diset di environment Vercel.',
+        });
+      }
+      const webpush = getWebPush();
+      if (!webpush) {
+        return res.status(503).json({
+          ok: false,
+          error: 'Modul web-push tidak tersedia di deployment. Jalankan ulang build dengan npm install.',
         });
       }
       const payload = payloadFor(body);
