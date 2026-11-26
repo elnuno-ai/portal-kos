@@ -929,11 +929,11 @@
             <div class="text-xs font-bold" id="pushPreviewTitle">Judul banner</div>
             <div class="text-[11px] text-stone-300" id="pushPreviewBody">Isi banner akan tampil di sini.</div>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="space-y-1.5">
             <button type="button" onclick="sendPushBroadcast()" class="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold">🚀 Kirim Banner Push</button>
-            <span id="pushSendResult" class="text-[11px] font-semibold text-stone-600"></span>
+            <div id="pushSendResult" class="hidden text-[11px] font-semibold"></div>
           </div>
-          <p class="text-[10px] text-stone-500">Butuh env Vercel: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, PUSH_ADMIN_TOKEN. Izin notifikasi tidak bisa dipaksa; subscriber harus menekan “Aktifkan Info Kos”.</p>
+          <p id="pushEnvHint" class="hidden text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 leading-relaxed"></p>
         </div>
 
         <!-- 0. IDENTITAS BRAND, LOGO, TITLE, SUBTITLE & FOOTER -->
@@ -3023,6 +3023,16 @@
             ? 'px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold'
             : 'px-2 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold';
         }
+        const hintEl = document.getElementById('pushEnvHint');
+        if (hintEl) {
+          if (data.enabled) {
+            hintEl.classList.add('hidden');
+            hintEl.textContent = '';
+          } else {
+            hintEl.textContent = 'Server push belum aktif: isi VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, dan VAPID_SUBJECT di Vercel, lalu redeploy.';
+            hintEl.classList.remove('hidden');
+          }
+        }
         const last = data.lastSubscribedAt ? new Date(data.lastSubscribedAt).toLocaleString('id-ID') : '-';
         statsEl.textContent = `Subscriber: ${data.total || 0} total • Pengunjung ${data.visitor || 0} • Member ${data.member || 0} • Update terakhir ${last}`;
       } catch (err) {
@@ -3084,12 +3094,24 @@
       if (bodyPreview) bodyPreview.textContent = (body && body.value.trim()) || 'Isi banner akan tampil di sini.';
     }
 
+    function showPushSendResult(message, type = 'info') {
+      const el = document.getElementById('pushSendResult');
+      if (!el) return;
+      const styles = {
+        info: 'bg-stone-100 text-stone-700 border-stone-300',
+        success: 'bg-emerald-50 text-emerald-900 border-emerald-300',
+        error: 'bg-red-50 text-red-900 border-red-300'
+      };
+      el.className = `text-[11px] font-semibold border rounded-lg px-2.5 py-1.5 leading-relaxed ${styles[type] || styles.info}`;
+      el.textContent = message;
+      el.classList.remove('hidden');
+    }
+
     async function sendPushBroadcast() {
       const title = document.getElementById('pushTitle').value.trim();
       const bodyText = document.getElementById('pushBody').value.trim();
       const tokenInput = document.getElementById('pushAdminToken');
       const token = tokenInput ? tokenInput.value.trim() : '';
-      const resultEl = document.getElementById('pushSendResult');
       if (!title || !bodyText) {
         showToast('Judul dan isi banner wajib diisi.', 'warning');
         return;
@@ -3111,7 +3133,7 @@
         tag: document.getElementById('pushTag').value.trim() || 'portal-kos',
         url
       };
-      if (resultEl) resultEl.textContent = 'Mengirim…';
+      showPushSendResult('Mengirim banner ke subscriber…', 'info');
       try {
         const res = await fetch('api/push', {
           method: 'POST',
@@ -3121,18 +3143,20 @@
         const data = await res.json().catch(() => null);
         if (!res.ok || !data || !data.ok) {
           const message = (data && data.error) || `HTTP ${res.status}`;
-          if (resultEl) resultEl.textContent = `❌ Gagal: ${message}`;
+          showPushSendResult(`❌ Gagal mengirim: ${message}`, 'error');
           showToast(`Gagal mengirim banner: ${message}`, 'error');
           return;
         }
         try { localStorage.setItem('pushAdminToken', token); } catch (err) { /* abaikan */ }
-        const summary = `✅ Terkirim ${data.sent || 0}/${data.total || 0} • gagal ${data.failed || 0} • dibersihkan ${data.removed || 0}`;
-        if (resultEl) resultEl.textContent = summary;
+        const timeLabel = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const summary = `✅ Terkirim ${data.sent || 0}/${data.total || 0} • gagal ${data.failed || 0} • dibersihkan ${data.removed || 0} (${timeLabel})`;
+        showPushSendResult(summary, 'success');
         showToast(summary, 'success');
         refreshPushAdminStats(true);
       } catch (err) {
-        if (resultEl) resultEl.textContent = `❌ Gagal: ${err && err.message ? err.message : 'jaringan error'}`;
-        showToast(`Gagal mengirim banner: ${err && err.message ? err.message : 'jaringan error'}`, 'error');
+        const message = err && err.message ? err.message : 'jaringan error';
+        showPushSendResult(`❌ Gagal mengirim: ${message}`, 'error');
+        showToast(`Gagal mengirim banner: ${message}`, 'error');
       }
     }
 

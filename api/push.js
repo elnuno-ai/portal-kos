@@ -16,10 +16,10 @@ function getWebPush() {
   return webpushModule;
 }
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || process.env.PUSH_VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || process.env.PUSH_VAPID_PRIVATE_KEY || '';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@portal-kos.local';
-const ADMIN_TOKEN = process.env.PUSH_ADMIN_TOKEN || '';
+const VAPID_PUBLIC_KEY = (process.env.VAPID_PUBLIC_KEY || process.env.PUSH_VAPID_PUBLIC_KEY || '').trim();
+const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || process.env.PUSH_VAPID_PRIVATE_KEY || '').trim();
+const VAPID_SUBJECT = (process.env.VAPID_SUBJECT || 'mailto:admin@portal-kos.local').trim();
+const ADMIN_TOKEN = (process.env.PUSH_ADMIN_TOKEN || '').trim();
 
 function getPool() {
   if (pool) return pool;
@@ -198,7 +198,7 @@ module.exports = async function handler(req, res) {
           error: 'PUSH_ADMIN_TOKEN belum diset di environment Vercel.',
         });
       }
-      const token = String(body.token || req.headers['x-push-token'] || '');
+      const token = String(body.token || req.headers['x-push-token'] || '').trim();
       if (token !== ADMIN_TOKEN) {
         return res.status(403).json({ ok: false, error: 'Kunci admin push salah.' });
       }

@@ -148,7 +148,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
             Ekosistem Hunian Nyaman, Kuliner Jadoel & Solusi Digital Lokal.
           </h1>
           <p id="aboutHeroDesc" class="text-stone-300 text-sm sm:text-base leading-relaxed">
-            <strong>Sedhah Ayu Grup</strong>, platform ini menyatukan layanan hunian kos modern, warung makan tradisional <strong>Pondhok Dhahar "Sedhah Ayu"</strong>, serta menjadi tempat peomosi untuk UMKM Magelang.
+            <strong>Sedhah Ayu Grup</strong>, platform ini menyatukan layanan hunian kos nyaman, warung makan tradisional <strong>Pondhok Dhahar "Sedhah Ayu"</strong>, serta menjadi tempat peomosi untuk UMKM Magelang.
           </p>
           <div class="pt-2 flex flex-wrap gap-3">
             <button onclick="switchMainTab('kos')" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition shadow">
@@ -181,7 +181,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
         <div class="flex items-start sm:items-center gap-3.5">
           <div class="w-11 h-11 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center text-xl shrink-0">🔔</div>
           <div>
-            <h3 class="font-bold text-sm sm:text-base text-stone-900">Aktifkan Notifikasi HP </h3>
+            <h3 class="font-bold text-sm sm:text-base text-stone-900">Ikuti notifikasi </h3>
             <p class="text-xs text-stone-600 mt-0.5">Jangan lewatkan promo dari kami setiap minggunya</p>
           </div>
         </div>
@@ -200,7 +200,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
             </div>
             <h3 class="text-lg font-extrabold text-stone-900">Hunian Kos <span id="cardKosTotalTitle">7</span> Kamar</h3>
             <p class="text-sm text-stone-600 mt-2 leading-relaxed">
-              Kos bersih, tenang, dan aman di Secang. Dilengkapi <strong>FREE</strong> jaringan WIFI, AIR, portal internal, dan grup obrolan mIRC32 penghuni.
+              Kos bersih, tenang, dan aman di sekitar Untidar, Soerojo Hospital. Dilengkapi <strong>FREE</strong> jaringan WIFI, Air, portal internal, dan grup obrolan mIRC32 penghuni.
             </p>
           </div>
           <button onclick="switchMainTab('kos')" class="mt-5 text-sm font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1">
@@ -235,7 +235,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
               Layanan optimasi Google Maps / profil bisnis lokal, pembuatan landing page ringan, pemasaran digital, dan otomasi alur kerja berbasis AI untuk UMKM di Magelang.
             </p>
           </div>
-          <a href="https://wa.me/6281234567890?text=Halo%20Mas%20Inu,%20saya%20tertarik%20konsultasi%20Digital%20Marketing%20%26%20AI%20Workflow" target="_blank" class="mt-5 text-sm font-bold text-indigo-800 hover:text-indigo-950 flex items-center gap-1">
+          <a href="https://wa.me/628568577633?text=Halo%20Mas%20Inu,%20saya%20tertarik%20konsultasi%20Digital%20Marketing%20%26%20AI%20Workflow" target="_blank" class="mt-5 text-sm font-bold text-indigo-800 hover:text-indigo-950 flex items-center gap-1">
             Konsultasi via WhatsApp <span>→</span>
           </a>
         </div>
@@ -269,7 +269,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
             Cita rasa masakan tradisional Jawa rumahan hangat setiap hari pukul <strong>06.30 – 20.30 WIB</strong>. Khusus penghuni kos tersedia layanan titip antar langsung lewat grup obrolan!
           </p>
         </div>
-        <a href="https://wa.me/6281234567890?text=Halo%20Pondhok%20Dhahar%20Sedhah%20Ayu,%20saya%20mau%20pesan%20menu%20hari%20ini" target="_blank"
+        <a href="https://wa.me/6281332677678?text=Halo%20Pondhok%20Dhahar%20Sedhah%20Ayu,%20saya%20mau%20pesan%20menu%20hari%20ini" target="_blank"
           class="px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-sm shrink-0 shadow transition">
           📲 Pesan Langsung via WA
         </a>
@@ -478,7 +478,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
               <div class="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2.5">
                 <div class="text-xs font-bold text-stone-800">📱 Keterangan Follow Media Sosial Resmi Kos & Sedhah Ayu</div>
                 <p class="text-[11px] text-stone-600 leading-relaxed">
-                  Silakan ikuti akun resmi kami untuk mendapatkan update jadwal kebersihan, promo menu harian <strong>Sedhah Ayu</strong>, dan info lingkungan Secang:
+                  Silakan ikuti akun resmi kami untuk mendapatkan update jadwal kebersihan, promo menu harian <strong>Sedhah Ayu</strong>, dan info lingkungan:
                 </p>
                 <div class="flex flex-wrap gap-1.5 text-[11px] font-bold">
                   <a href="https://instagram.com/sedhahayu" target="_blank" class="px-2.5 py-1 rounded-lg bg-pink-50 text-pink-800 border border-pink-200 hover:bg-pink-100">Instagram @sedhahayu.kos</a>
@@ -659,11 +659,11 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JS
 
             <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-4">
               <div class="flex items-center justify-between">
-                <h3 class="font-extrabold text-lg text-stone-900">Wi-Fi MikroTik Kamar</h3>
+                <h3 class="font-extrabold text-lg text-stone-900">Wi-Fi Kamar</h3>
                 <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">Shared Users: Max 2</span>
               </div>
               <div class="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-2.5 text-xs sm:text-sm">
-                <div class="flex justify-between"><span class="text-stone-600">SSID Hotspot</span><span class="font-mono-code font-bold text-blue-950">KOS-INUKERTA-5G</span></div>
+                <div class="flex justify-between"><span class="text-stone-600">SSID Hotspot</span><span class="font-mono-code font-bold text-blue-950">KOS-SEDHAHAYU</span></div>
                 <div class="flex justify-between items-center">
                   <span class="text-stone-600">Username Kamar</span>
                   <div class="flex items-center gap-1.5">
